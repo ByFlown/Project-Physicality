@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --border: #dde1e8;
+  --fg: #11141a;
+  --muted: #5d6573;
+  --accent: #ea580c;
+  --accent-soft: #ffedd5;
+  --accent-fg: #ffffff;
+  --good: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
+  --info: #0284c7;
+  --scene-bg: #e7eaf0;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0b0d12;
+  --surface: #12151c;
+  --surface-2: #191d26;
+  --border: #252b37;
+  --fg: #eceff4;
+  --muted: #8b93a3;
+  --accent: #ff7a2f;
+  --accent-soft: #3a1f10;
+  --accent-fg: #140a04;
+  --good: #22c55e;
+  --warn: #f59e0b;
+  --bad: #f43f5e;
+  --info: #38bdf8;
+  --scene-bg: #0e1118;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-pop-in {
+  animation: pop-in 0.22s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
