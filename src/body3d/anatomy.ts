@@ -115,7 +115,11 @@ export interface MusclePart {
   bulge: number;
   /** Torso parts are mirrored to the other side unless this is false. */
   mirror?: boolean;
+  /** Extra heads only rendered in the precise model. */
+  detail?: 'precise';
 }
+
+export type ModelDetail = 'standard' | 'precise';
 
 const P = Math.PI;
 
@@ -184,11 +188,155 @@ export const MUSCLE_PARTS: MusclePart[] = [
   { muscle: 'calves', segment: 'shin', y: -0.1, angle: -2.65, width: 0.083, height: 0.172, bulge: 0.019 },
   { muscle: 'calves', segment: 'shin', y: -0.09, angle: 2.65, width: 0.075, height: 0.149, bulge: 0.015 },
   { muscle: 'calves', segment: 'shin', y: -0.2, angle: P, width: 0.12, height: 0.115, bulge: 0.008 },
+
+  // --- Precise-only heads: finer separation and definition.
+  // Pec abdominal head (lower edge of the chest)
+  {
+    muscle: 'chest',
+    segment: 'torso',
+    y: 1.255,
+    angle: 0.36,
+    width: 0.14,
+    height: 0.05,
+    tilt: -0.1,
+    bulge: 0.01,
+    detail: 'precise',
+  },
+  // Serratus anterior digitations
+  {
+    muscle: 'obliques',
+    segment: 'torso',
+    y: 1.27,
+    angle: 1.22,
+    width: 0.035,
+    height: 0.03,
+    tilt: -0.4,
+    bulge: 0.006,
+    detail: 'precise',
+  },
+  {
+    muscle: 'obliques',
+    segment: 'torso',
+    y: 1.235,
+    angle: 1.2,
+    width: 0.035,
+    height: 0.03,
+    tilt: -0.4,
+    bulge: 0.006,
+    detail: 'precise',
+  },
+  {
+    muscle: 'obliques',
+    segment: 'torso',
+    y: 1.2,
+    angle: 1.17,
+    width: 0.035,
+    height: 0.03,
+    tilt: -0.4,
+    bulge: 0.006,
+    detail: 'precise',
+  },
+  // Lower traps and lower lats
+  {
+    muscle: 'traps',
+    segment: 'torso',
+    y: 1.3,
+    angle: 2.95,
+    width: 0.07,
+    height: 0.12,
+    tilt: 0.3,
+    bulge: 0.008,
+    detail: 'precise',
+  },
+  {
+    muscle: 'lats',
+    segment: 'torso',
+    y: 1.12,
+    angle: 2.4,
+    width: 0.12,
+    height: 0.12,
+    tilt: 0.6,
+    bulge: 0.01,
+    detail: 'precise',
+  },
+  // Biceps short head, brachialis, triceps medial head
+  {
+    muscle: 'biceps',
+    segment: 'upperArm',
+    y: -0.2,
+    angle: -0.45,
+    width: 0.05,
+    height: 0.13,
+    bulge: 0.009,
+    detail: 'precise',
+  },
+  {
+    muscle: 'biceps',
+    segment: 'upperArm',
+    y: -0.24,
+    angle: 1.1,
+    width: 0.045,
+    height: 0.08,
+    bulge: 0.007,
+    detail: 'precise',
+  },
+  {
+    muscle: 'triceps',
+    segment: 'upperArm',
+    y: -0.24,
+    angle: 3.1,
+    width: 0.06,
+    height: 0.08,
+    bulge: 0.009,
+    detail: 'precise',
+  },
+  // Vastus intermedius / tear-drop emphasis and gluteal fold
+  {
+    muscle: 'quads',
+    segment: 'thigh',
+    y: -0.36,
+    angle: -0.35,
+    width: 0.06,
+    height: 0.07,
+    bulge: 0.009,
+    detail: 'precise',
+  },
+  {
+    muscle: 'glutes',
+    segment: 'torso',
+    y: 0.815,
+    angle: 2.75,
+    width: 0.14,
+    height: 0.06,
+    bulge: 0.01,
+    detail: 'precise',
+  },
+  // Soleus flare
+  {
+    muscle: 'calves',
+    segment: 'shin',
+    y: -0.24,
+    angle: 1.9,
+    width: 0.05,
+    height: 0.12,
+    bulge: 0.006,
+    detail: 'precise',
+  },
+  {
+    muscle: 'calves',
+    segment: 'shin',
+    y: -0.24,
+    angle: -1.9,
+    width: 0.05,
+    height: 0.12,
+    bulge: 0.006,
+    detail: 'precise',
+  },
 ];
 
-/** Torso parts for both sides (mirrored copies appended). */
-export function partsForSegment(segment: SegmentId): MusclePart[] {
-  const parts = MUSCLE_PARTS.filter((p) => p.segment === segment);
+/** Parts for one segment at a detail level; torso parts get mirrored copies for the other side. */
+export function partsForSegment(segment: SegmentId, detail: ModelDetail = 'standard'): MusclePart[] {
+  const parts = MUSCLE_PARTS.filter((p) => p.segment === segment && (!p.detail || detail === 'precise'));
   if (segment !== 'torso') return parts;
   return [
     ...parts,

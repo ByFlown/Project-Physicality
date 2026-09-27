@@ -5,11 +5,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Spherical, Vector3, type Camera } from 'three';
 import { cx } from '../lib/cx';
 import { MUSCLES, type MuscleId } from '../domain/muscles';
+import type { Scan } from '../domain/schema';
+import type { ModelDetail } from './anatomy';
 import { BodyScene, type MuscleVisual } from './BodyScene';
+import { buildRig } from './rig';
 import { shapeFactors, type BodyShape } from './shape';
 
 export interface BodyViewerProps {
   shape: BodyShape;
+  detail: ModelDetail;
+  /** Latest body scan and the per-muscle bulges on its date (precise mode). */
+  scan?: Scan | null;
+  bulgesAtScan?: Record<MuscleId, number> | null;
   muscles: Record<MuscleId, MuscleVisual & { label?: string }>;
   selected?: MuscleId | null;
   onSelect?: (id: MuscleId) => void;
@@ -53,11 +60,22 @@ function CameraRig({ view, nonce, target }: { view: View; nonce: number; target:
   return null;
 }
 
-export default function BodyViewer({ shape, muscles, selected, onSelect, dark, className }: BodyViewerProps) {
+export default function BodyViewer({
+  shape,
+  detail,
+  scan,
+  bulgesAtScan,
+  muscles,
+  selected,
+  onSelect,
+  dark,
+  className,
+}: BodyViewerProps) {
   const [hovered, setHovered] = useState<MuscleId | null>(null);
   const [view, setView] = useState<View>('front');
   const [nonce, setNonce] = useState(0);
   const factors = useMemo(() => shapeFactors(shape), [shape]);
+  const rig = useMemo(() => buildRig(factors, detail, scan, bulgesAtScan), [factors, detail, scan, bulgesAtScan]);
   const target = useMemo(() => new Vector3(0, 0.98 * factors.scale, 0), [factors.scale]);
   const distance = 3.3 * factors.scale;
 
@@ -91,7 +109,9 @@ export default function BodyViewer({ shape, muscles, selected, onSelect, dark, c
         <directionalLight position={[-2.5, 3, -3]} intensity={dark ? 1.3 : 1.0} color={dark ? '#8fb3ff' : '#ffffff'} />
         <directionalLight position={[0, 1.5, 4]} intensity={0.35} />
         <BodyScene
-          shape={factors}
+          rig={rig}
+          detail={detail}
+          absDefinition={factors.absDefinition}
           muscles={muscles}
           skinColor={dark ? '#8e97a8' : '#c4cad4'}
           selected={selected}

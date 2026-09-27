@@ -6,9 +6,11 @@ import {
   type CustomExercise,
   type Measurement,
   type Profile,
+  type Scan,
   type Settings,
   type Workout,
 } from '../domain/schema';
+import { clearScanPhotos, deleteScanPhotos } from '../scan/photoStore';
 import { clearData, loadData, requestPersistentStorage, saveData, subscribeToOtherTabs } from './persistence';
 
 export interface AppState {
@@ -20,6 +22,10 @@ export interface AppState {
 
   hydrate: () => Promise<void>;
   setProfile: (profile: Profile) => void;
+  /** Create the profile together with its onboarding scan in one write. */
+  completeOnboarding: (profile: Profile, scan: Scan, measurement: Measurement) => void;
+  saveScan: (scan: Scan, measurement: Measurement) => void;
+  deleteScan: (id: string) => void;
   updateProfile: (patch: Partial<Profile>) => void;
   saveWorkout: (workout: Workout) => void;
   deleteWorkout: (id: string) => void;
@@ -75,6 +81,29 @@ export const useAppStore = create<AppState>()((set, get) => {
       commit((d) => ({ ...d, profile }));
       void requestPersistentStorage();
     },
+    completeOnboarding: (profile, scan, measurement) => {
+      commit((d) => ({
+        ...d,
+        profile,
+        scans: upsertBy(d.scans, scan, (x) => x.id),
+        measurements: upsertBy(d.measurements, measurement, (x) => x.id),
+      }));
+      void requestPersistentStorage();
+    },
+    saveScan: (scan, measurement) =>
+      commit((d) => ({
+        ...d,
+        scans: upsertBy(d.scans, scan, (x) => x.id),
+        measurements: upsertBy(d.measurements, measurement, (x) => x.id),
+      })),
+    deleteScan: (id) => {
+      commit((d) => ({
+        ...d,
+        scans: d.scans.filter((x) => x.id !== id),
+        measurements: d.measurements.filter((m) => m.scanId !== id),
+      }));
+      void deleteScanPhotos(id).catch(() => {});
+    },
     updateProfile: (patch) => commit((d) => (d.profile ? { ...d, profile: { ...d.profile, ...patch } } : d)),
 
     saveWorkout: (workout) => commit((d) => ({ ...d, workouts: upsertBy(d.workouts, workout, (w) => w.id) })),
@@ -102,6 +131,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     resetAll: async () => {
       await clearData();
+      await clearScanPhotos().catch(() => {});
       set({ data: emptyAppData() });
     },
   };

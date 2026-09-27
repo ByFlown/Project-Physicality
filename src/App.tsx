@@ -18,6 +18,7 @@ const ProgressPage = lazy(() => import('./features/Progress'));
 const ExercisesPage = lazy(() => import('./features/Exercises'));
 const SettingsPage = lazy(() => import('./features/Settings'));
 const HowItWorks = lazy(() => import('./features/HowItWorks'));
+const ScanPage = lazy(() => import('./features/scan/ScanPage'));
 
 function Splash({ children }: { children?: ReactNode }) {
   return (
@@ -86,6 +87,7 @@ export default function App() {
               <Route path="workout/:id" element={<WorkoutEditor />} />
               <Route path="check-in" element={<CheckInPage />} />
               <Route path="measurements" element={<MeasurementsPage />} />
+              <Route path="scan" element={<ScanPage />} />
               <Route path="muscles/:id" element={<MuscleDetail />} />
               <Route path="history" element={<HistoryPage />} />
               <Route path="progress" element={<ProgressPage />} />

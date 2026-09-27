@@ -1,4 +1,14 @@
-import { AlertTriangle, ClipboardList, Dumbbell, Flame, Moon, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  ClipboardList,
+  Dumbbell,
+  Flame,
+  Moon,
+  ScanLine,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { BodyPanel } from '../components/BodyPanel';
@@ -63,6 +73,24 @@ export default function Dashboard() {
           </Link>
         </div>
       </header>
+
+      {data.scans.length === 0 && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-accent/40">
+          <div className="flex items-start gap-3">
+            <ScanLine size={22} className="mt-0.5 shrink-0 text-accent" />
+            <div>
+              <p className="font-semibold">Scan your body for the precise model</p>
+              <p className="text-sm text-muted">
+                Two photos give your 3D model your real proportions and calibrate your muscles. Processed on this
+                device.
+              </p>
+            </div>
+          </div>
+          <Link to="/scan">
+            <Button>Start scan</Button>
+          </Link>
+        </Card>
+      )}
 
       <Card className="flex flex-col gap-5 sm:flex-row sm:items-center">
         <LevelRing level={overall.level} progress={overall.progress} size={112} label="Level" />

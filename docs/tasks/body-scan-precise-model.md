@@ -60,7 +60,7 @@ In concrete terms:
   - `DATA_VERSION = 2`.
 - [x] **Migration v1 → v2** in `src/store/persistence.ts` (`migrateV1toV2`), with a test in
       `src/store/persistence.test.ts`.
-- [x] `src/domain/demo.ts` sets `scans: []`. A demo scan comes later — see step 10.
+- [x] `src/domain/demo.ts` includes a synthetic demo scan (`src/scan/demoScan.ts`).
 - [x] `src/scan/types.ts`:
   - `Pt`, `Landmark`, `Mask`, `CATEGORY`;
   - chord ids (`FRONT_CHORDS`, `SIDE_CHORDS`, `CHORD_LABELS`);
@@ -68,24 +68,39 @@ In concrete terms:
 - [x] `tools/scan-lab/index.html`, a manual browser harness. Use it with `npm run dev`, then open
       `/tools/scan-lab/` and call `await pose(url)` or `await seg(url)`.
 
-### Not started — do in this order
+### Implemented (all twelve steps; see follow-ups below)
 
-- [ ] 1. Asset pipeline wiring (§5.1)
-- [ ] 2. `src/scan/geometry.ts` + unit tests with synthetic masks (§5.2)
-- [ ] 3. `src/scan/detector.ts`, `src/scan/photo.ts`, `src/scan/photoStore.ts` (§5.3)
-- [ ] 4. `src/scan/buildScan.ts`: markup → `Scan` (circumferences, body fat) + tests (§5.4)
-- [ ] 5. `src/body3d/rig.ts` refactor: reference rig vs scanned rig + calibration + tests (§5.5)
-- [ ] 6. `deform.ts`: signed bulges + precise-mode extra muscle parts and resolution (§5.6)
-- [ ] 7. Scan-based starting levels in `assessment.ts` / engine + tests (§5.7)
-- [ ] 8. UI: `ScanEditor`, `ScanWizard`, forced onboarding step, `/scan` page, settings toggle, dashboard banner,
+- [x] 1. Asset pipeline wiring (§5.1)
+- [x] 2. `src/scan/geometry.ts` + unit tests with synthetic masks (§5.2)
+- [x] 3. `src/scan/detector.ts`, `src/scan/photo.ts`, `src/scan/photoStore.ts` (§5.3)
+- [x] 4. `src/scan/buildScan.ts`: markup → `Scan` (circumferences, body fat) + tests (§5.4)
+- [x] 5. `src/body3d/rig.ts` refactor: reference rig vs scanned rig + calibration + tests (§5.5)
+- [x] 6. `deform.ts`: shared `prepareParts`/`displacementAt` + precise-mode extra muscle parts and resolution (§5.6).
+      Signed bulges turned out unnecessary: calibration subtracts the scan-date bulges from the base rings, so
+      rendering only ever adds positive bulges.
+- [x] 7. Scan-based starting levels in `assessment.ts` / engine + tests (§5.7)
+- [x] 8. UI: `ScanEditor`, `ScanWizard`, forced onboarding step, `/scan` page, settings toggle, dashboard banner,
       measurement integration (§5.8)
-- [ ] 9. `bodystats.ts`: scans as a composition source (§5.9)
-- [ ] 10. Demo scan (§5.10)
-- [ ] 11. E2E updates + CSP/PWA verification (§5.11)
-- [ ] 12. Docs: README, the "How it works" page, honest-limits copy (§5.12)
+- [x] 9. `bodystats.ts`: scans as a composition source (§5.9)
+- [x] 10. Demo scan (§5.10)
+- [x] 11. E2E updates + CSP/PWA verification (§5.11)
+- [x] 12. Docs: README, the "How it works" page, honest-limits copy (§5.12)
 
 Keep `npm run check` green after each step. That's typecheck + `oxlint --deny-warnings` + vitest + build. Also run
 `npm run format` before committing, since CI runs `format:check`.
+
+### Follow-ups (not done)
+
+- [ ] **Validate side-view accuracy on real people.** No freely licensed real side-view photo was available in the
+      build environment. Scan yourself (and ideally a few people), compare with a tape measure, and record the results
+      here. The front view was verified on a real CC0 photo: after the fixes, neck 12.6 cm and chest 28 cm widths,
+      lines on the right anatomy.
+- [ ] **Tune the ellipse/rectangle k-factors and `SCAN_REFERENCE` anchors** in `src/scan/buildScan.ts` and
+      `src/domain/assessment.ts` against those tape measurements.
+- [ ] **Upper arm width is underestimated when the arms hang against the torso.** One side is capped, so we assume
+      symmetry about the free side. It works when users follow the "arms 30–45° out" instruction, and the user can
+      drag the line.
+- [ ] Optional: progress-photo overlay comparing the first and latest kept photos on `/scan`.
 
 ## 4. Findings from the feasibility spike (don't re-learn these)
 
@@ -189,7 +204,7 @@ Other front outputs:
 - Chords are horizontal: the **longest run** at that row. Arms hang over the torso, and both legs overlap, which is
   fine.
 - `hips` depth: the maximum within ±0.04·H of its fraction.
-- `calf` depth: the maximum in `[0.15, 0.30]·H`.
+- `calf` depth: the maximum in `[0.15, 0.27]·H` (the knee sits at ~0.285·H).
 - `facingRight`: compare the face-skin (category 3) centroid x with the body centroid x in the head rows, or nose x
   against ear x. Fall back to `true`. The user can flip it in the editor.
 - Body axis (for the model's torso z offsets): the midpoint of the hips chord. For each profile row, `front`/`back`

@@ -1,3 +1,4 @@
+import { buildDemoScan } from '../scan/demoScan';
 import { addDays, type LocalDate } from './dates';
 import { DATA_VERSION, DEFAULT_SETTINGS, type AppData, type CheckIn, type Measurement, type Workout } from './schema';
 
@@ -136,7 +137,7 @@ export function buildDemoData(endDate: LocalDate, weeks = 12): AppData {
     checkIns,
     measurements,
     customExercises: [],
-    scans: [],
+    scans: [buildDemoScan(start)],
     settings: { ...DEFAULT_SETTINGS },
   };
 }

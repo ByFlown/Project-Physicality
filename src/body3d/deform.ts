@@ -30,6 +30,88 @@ const smoothstep = (e0: number, e1: number, x: number) => {
 
 const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
+export interface PreparedPart {
+  p: MusclePart;
+  cos: number;
+  sin: number;
+  hw: number;
+  hh: number;
+  bulge: number;
+  color: RGB;
+  index: number;
+  yMin: number;
+  yMax: number;
+}
+
+/** Resolve per-part bulge, colour and footprint trigonometry once per render. */
+export function prepareParts(
+  parts: MusclePart[],
+  looks: Record<MuscleId, MuscleLook>,
+  absDefinition: number,
+): PreparedPart[] {
+  return parts.map((p) => {
+    const t = p.tilt ?? 0;
+    const look = looks[p.muscle];
+    const bulge = p.bulge * look.bulgeScale * (p.muscle === 'abs' ? absDefinition : 1);
+    const hi = look.highlight;
+    const c = look.color;
+    return {
+      p,
+      cos: Math.cos(t),
+      sin: Math.sin(t),
+      hw: p.width / 2,
+      hh: p.height / 2,
+      bulge,
+      color: [c[0] + (1 - c[0]) * hi * 0.5, c[1] + (1 - c[1]) * hi * 0.5, c[2] + (1 - c[2]) * hi * 0.5],
+      index: MUSCLE_INDEX.get(p.muscle) ?? -1,
+      yMin: p.y - Math.max(p.width, p.height),
+      yMax: p.y + Math.max(p.width, p.height),
+    };
+  });
+}
+
+export interface SurfaceSample {
+  /** Outward displacement along the surface normal, metres. */
+  disp: number;
+  /** 0..1 — how strongly the dominant muscle colours this point. */
+  coverage: number;
+  color: RGB | null;
+  index: number;
+}
+
+/**
+ * Muscle displacement at a surface point given in segment coordinates
+ * (height `y`, angle `a` around the axis, local radius `r`). Overlapping
+ * muscles combine as the strongest bulge plus 30% of the rest, which keeps
+ * visible creases between neighbouring muscles.
+ */
+export function displacementAt(prepared: PreparedPart[], y: number, a: number, r: number): SurfaceSample {
+  let hMax = 0;
+  let hSum = 0;
+  let coverage = 0;
+  let color: RGB | null = null;
+  let index = -1;
+  for (const q of prepared) {
+    if (y < q.yMin || y > q.yMax) continue;
+    const u0 = wrapAngle(a - q.p.angle) * r;
+    const v0 = y - q.p.y;
+    const u = u0 * q.cos + v0 * q.sin;
+    const w = -u0 * q.sin + v0 * q.cos;
+    const d2 = (u / q.hw) ** 2 + (w / q.hh) ** 2;
+    if (d2 >= 1) continue;
+    const h = q.bulge * (1 - d2) ** 1.5;
+    hSum += h;
+    if (h > hMax) hMax = h;
+    const cov = 1 - smoothstep(0.78, 1, Math.sqrt(d2));
+    if (cov > coverage) {
+      coverage = cov;
+      color = q.color;
+      index = q.index;
+    }
+  }
+  return { disp: hMax + 0.3 * (hSum - hMax), coverage, color, index };
+}
+
 /**
  * Displace a lofted skin outward where muscles lie and paint vertex colours.
  * Returns the dominant muscle index per vertex (−1 for bare skin) for picking.
@@ -47,70 +129,25 @@ export function deformLoft(
   const col = color.array as Float32Array;
   const owner = new Int16Array(vertexCount).fill(-1);
   const tint = opts.tint ?? 0.9;
-
-  const prepared = parts.map((p) => {
-    const t = p.tilt ?? 0;
-    const look = looks[p.muscle];
-    const bulge = p.bulge * look.bulgeScale * (p.muscle === 'abs' ? opts.absDefinition : 1);
-    const hi = look.highlight;
-    const c = look.color;
-    return {
-      p,
-      cos: Math.cos(t),
-      sin: Math.sin(t),
-      hw: p.width / 2,
-      hh: p.height / 2,
-      bulge,
-      color: [c[0] + (1 - c[0]) * hi * 0.5, c[1] + (1 - c[1]) * hi * 0.5, c[2] + (1 - c[2]) * hi * 0.5] as RGB,
-      index: MUSCLE_INDEX.get(p.muscle) ?? -1,
-      yMin: p.y - Math.max(p.width, p.height),
-      yMax: p.y + Math.max(p.width, p.height),
-    };
-  });
+  const prepared = prepareParts(parts, looks, opts.absDefinition);
 
   for (let v = 0; v < vertexCount; v++) {
     const i3 = v * 3;
     const y = params[i3];
-    let hMax = 0;
-    let hSum = 0;
-    let bestCov = 0;
-    let bestColor: RGB | null = null;
-    let bestIndex = -1;
+    const s = Number.isNaN(y)
+      ? { disp: 0, coverage: 0, color: null, index: -1 }
+      : displacementAt(prepared, y, params[i3 + 1], params[i3 + 2]);
 
-    if (!Number.isNaN(y)) {
-      const a = params[i3 + 1];
-      const r = params[i3 + 2];
-      for (const q of prepared) {
-        if (y < q.yMin || y > q.yMax) continue;
-        const u0 = wrapAngle(a - q.p.angle) * r;
-        const v0 = y - q.p.y;
-        const u = u0 * q.cos + v0 * q.sin;
-        const w = -u0 * q.sin + v0 * q.cos;
-        const d2 = (u / q.hw) ** 2 + (w / q.hh) ** 2;
-        if (d2 >= 1) continue;
-        const h = q.bulge * (1 - d2) ** 1.5;
-        hSum += h;
-        if (h > hMax) hMax = h;
-        const cov = 1 - smoothstep(0.78, 1, Math.sqrt(d2));
-        if (cov > bestCov) {
-          bestCov = cov;
-          bestColor = q.color;
-          bestIndex = q.index;
-        }
-      }
-    }
+    pos[i3] = basePositions[i3] + baseNormals[i3] * s.disp;
+    pos[i3 + 1] = basePositions[i3 + 1] + baseNormals[i3 + 1] * s.disp;
+    pos[i3 + 2] = basePositions[i3 + 2] + baseNormals[i3 + 2] * s.disp;
 
-    const disp = hMax + 0.3 * (hSum - hMax);
-    pos[i3] = basePositions[i3] + baseNormals[i3] * disp;
-    pos[i3 + 1] = basePositions[i3 + 1] + baseNormals[i3 + 1] * disp;
-    pos[i3 + 2] = basePositions[i3 + 2] + baseNormals[i3 + 2] * disp;
-
-    const k = bestColor ? bestCov * tint : 0;
-    const c = bestColor ?? opts.skin;
+    const k = s.color ? s.coverage * tint : 0;
+    const c = s.color ?? opts.skin;
     col[i3] = opts.skin[0] * (1 - k) + c[0] * k;
     col[i3 + 1] = opts.skin[1] * (1 - k) + c[1] * k;
     col[i3 + 2] = opts.skin[2] * (1 - k) + c[2] * k;
-    if (bestCov > 0.35) owner[v] = bestIndex;
+    if (s.coverage > 0.35) owner[v] = s.index;
   }
 
   position.needsUpdate = true;

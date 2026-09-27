@@ -101,6 +101,23 @@ export default function HowItWorks() {
         </p>
       </Section>
 
+      <Section title="6. Body scans & the precise model">
+        <p>
+          A scan takes a <strong>front and a side photo</strong>. On your device, a pose model finds your joints and a
+          segmentation model outlines your body; measurement lines are placed across neck, shoulders, chest, waist,
+          hips, arm, forearm, thigh and calf, and you can drag every line to correct it. Your height sets the scale.
+          Widths (front) and depths (side) become circumferences and a Navy body-fat estimate.
+        </p>
+        <p>
+          In <strong>Precise</strong> mode the 3D body is rebuilt from your scanned proportions and{' '}
+          <strong>calibrated</strong>: the muscle bulges you had on the scan date are subtracted from the silhouette, so
+          the model matches your photos exactly on that day and then grows or shrinks with your levels. Precise mode
+          also adds extra muscle heads and a denser mesh. The onboarding scan also nudges the starting level of the
+          muscles a circumference covers — halfway between your experience-based level and what the girth suggests.
+        </p>
+        <p>Photos never leave your device and are not kept unless you tick the box; backups never include them.</p>
+      </Section>
+
       <Section title="Honest limits">
         <p>
           Levels measure <strong>training done and sustained</strong>, not muscle mass. Nobody can see individual

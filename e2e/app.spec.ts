@@ -1,4 +1,26 @@
 import { expect, test, type Page } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
+
+const fixture = (name: string) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
+
+/** Complete the required body scan. Plain images contain no person, so this exercises manual placement. */
+async function completeScan(page: Page) {
+  await page.getByRole('button', { name: 'Add photos' }).click();
+  await page.getByLabel('Front photo').setInputFiles(fixture('plain-front.png'));
+  await page.getByLabel('Side photo').setInputFiles(fixture('plain-side.png'));
+  await page.getByRole('button', { name: 'Analyse' }).click();
+  await expect(page.getByText('Check the front measurements')).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText(/No person was detected|Automatic detection is unavailable/).first()).toBeVisible();
+  // Nudge one line with the keyboard to prove the editor responds.
+  await page.getByRole('slider', { name: /^Chest first edge/ }).press('ArrowLeft');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Check the side measurements')).toBeVisible();
+  await page.getByRole('button', { name: 'Review results' }).click();
+  await expect(page.getByText('Your scan', { exact: true })).toBeVisible();
+  await page.getByLabel('I placed the lines on my photos myself and they match my body').check();
+  await page.getByRole('button', { name: 'Use this scan' }).click();
+  await expect(page.getByText('Body scan complete')).toBeVisible();
+}
 
 async function onboard(page: Page, name = 'Sam') {
   await page.goto('/');
@@ -11,6 +33,10 @@ async function onboard(page: Page, name = 'Sam') {
   await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('radio', { name: /Intermediate/ }).click();
   await page.getByRole('button', { name: 'Continue' }).click();
+  // The scan is mandatory: no way forward until it is done.
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeHidden();
+  await completeScan(page);
+  await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByLabel('Neck').fill('39');
   await page.getByLabel('Waist (navel)').fill('84');
   await expect(page.getByText(/Estimated body fat/)).toBeVisible();
@@ -22,10 +48,26 @@ async function onboard(page: Page, name = 'Sam') {
   await expect(page.getByRole('heading', { name: new RegExp(`, ${name}$`) })).toBeVisible();
 }
 
-test('onboarding creates a profile and shows the dashboard', async ({ page }) => {
+test('onboarding requires a scan, then shows the calibrated dashboard', async ({ page }) => {
   await onboard(page);
   await expect(page.getByText(/XP to level/)).toBeVisible();
   await expect(page.getByRole('link', { name: /Calves/ }).first()).toBeVisible();
+  await expect(page.getByText(/calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
+  await page.goto('/scan');
+  await expect(page.getByText('Placed by hand')).toBeVisible();
+  await page.goto('/measurements');
+  await expect(page.getByText('photo scan')).toBeVisible();
+});
+
+test('model detail can be switched in settings', async ({ page }) => {
+  await page.goto('/welcome');
+  await page.getByRole('button', { name: 'Explore with demo data' }).click();
+  await expect(page.getByText(/calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
+  await page.goto('/settings');
+  await page.getByRole('radiogroup', { name: '3D model detail' }).getByRole('radio', { name: 'Standard' }).click();
+  await page.goto('/');
+  await expect(page.getByText(/Standard model/)).toBeVisible();
+  await expect(page.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
 });
 
 test('logging a workout earns XP and persists across reloads', async ({ page }) => {
@@ -95,7 +137,9 @@ test('backup export and import round-trip', async ({ page }) => {
   await page.getByLabel('Birth year').fill('1990');
   await page.getByLabel('Height').fill('175');
   await page.getByLabel('Weight').fill('70');
-  for (let i = 0; i < 4; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Continue' }).click();
+  await completeScan(page);
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Continue' }).click();
   await page.getByRole('button', { name: 'Start training' }).click();
   await expect(page.getByRole('heading', { name: /, Tmp$/ })).toBeVisible();
   await page.getByRole('link', { name: 'Settings' }).first().click();

@@ -32,3 +32,12 @@ export function muscleVisuals(sim: Simulation, mode: ColorMode): Record<MuscleId
   }
   return out;
 }
+
+/** Per-muscle bulge factors on a given date (used to anchor the model to a scan). */
+export function bulgesOnDate(sim: Simulation, date: string): Record<MuscleId, number> {
+  const exact = sim.timeline.dates.indexOf(date);
+  const found = exact >= 0 ? exact : date < sim.startDate ? 0 : sim.timeline.dates.length - 1;
+  const out = {} as Record<MuscleId, number>;
+  for (const id of MUSCLE_IDS) out[id] = muscleBulge(fractionalLevel(sim.timeline.muscleXp[id][found]));
+  return out;
+}

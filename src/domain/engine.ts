@@ -1,4 +1,4 @@
-import { computeBaseline, type Baseline } from './assessment';
+import { computeBaseline, onboardingScan, type Baseline } from './assessment';
 import { dayIndex, fromDayIndex, type LocalDate } from './dates';
 import { buildExerciseIndex, type Exercise } from './exercises';
 import { levelFromXp, tierForLevel, xpToNext, type LevelInfo, type Tier } from './leveling';
@@ -162,7 +162,7 @@ export function simulate(data: AppData, endDate: LocalDate): Simulation | null {
   if (!profile) return null;
 
   const exercises = buildExerciseIndex(data.customExercises.map((c) => ({ ...c }) as Exercise));
-  const baseline = computeBaseline(profile);
+  const baseline = computeBaseline(profile, onboardingScan(data.scans));
 
   const earliestWorkout = data.workouts.reduce<number>(
     (min, w) => Math.min(min, dayIndex(w.date)),

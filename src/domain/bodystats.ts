@@ -1,4 +1,4 @@
-import { startBodyFat, type BodyFatSource } from './assessment';
+import { onboardingScan, startBodyFat, type BodyFatSource } from './assessment';
 import { ffmi, navyBodyFat } from './bodycomp';
 import { compareDates, type LocalDate } from './dates';
 import type { AppData, MeasurementValues } from './schema';
@@ -53,16 +53,19 @@ export function bodyStats(data: AppData): BodyStats | null {
     };
   };
 
-  const start = startBodyFat(profile);
+  const start = startBodyFat(profile, onboardingScan(data.scans));
   const composition: CompositionPoint[] = [makePoint(profile.startDate, start.value, start.source)];
 
-  const measurements = [...data.measurements].sort((a, b) => compareDates(a.date, b.date));
+  // Same-day tape values override photo-scan values (tape is more accurate).
+  const measurements = [...data.measurements].sort(
+    (a, b) => compareDates(a.date, b.date) || Number(a.source !== 'scan') - Number(b.source !== 'scan'),
+  );
   const latestMeasurements: MeasurementValues = { ...profile.startMeasurements };
   for (const m of measurements) {
     Object.assign(latestMeasurements, m.values);
     const merged = { ...latestMeasurements };
     let bf: number | undefined = m.bodyFatPct;
-    let source: BodyFatSource = 'reported';
+    let source: BodyFatSource = m.source === 'scan' ? 'scan' : 'reported';
     if (bf === undefined) {
       bf = navyBodyFat(profile.sex, profile.heightCm, merged);
       source = 'navy';

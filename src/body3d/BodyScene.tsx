@@ -2,19 +2,10 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import { Color } from 'three';
 import { MUSCLE_IDS, type MuscleId } from '../domain/muscles';
-import {
-  forearmRings,
-  JOINTS,
-  partsForSegment,
-  shinRings,
-  thighRings,
-  torsoRings,
-  upperArmRings,
-  type SegmentId,
-} from './anatomy';
+import type { ModelDetail, SegmentId } from './anatomy';
 import { deformLoft, type MuscleLook, type RGB } from './deform';
 import { buildLoft, UNIT_SPHERE, type Loft } from './geometry';
-import type { ShapeFactors } from './shape';
+import { placeParts, SEGMENTS, type BodyRig } from './rig';
 
 export interface MuscleVisual {
   color: string;
@@ -23,7 +14,9 @@ export interface MuscleVisual {
 }
 
 export interface BodySceneProps {
-  shape: ShapeFactors;
+  rig: BodyRig;
+  detail: ModelDetail;
+  absDefinition: number;
   muscles: Record<MuscleId, MuscleVisual>;
   skinColor: string;
   selected?: MuscleId | null;
@@ -32,7 +25,11 @@ export interface BodySceneProps {
   onSelect?: (id: MuscleId) => void;
 }
 
-const SEGMENTS: SegmentId[] = ['torso', 'upperArm', 'forearm', 'thigh', 'shin'];
+/** Mesh resolution per segment: [radial segments, rings per span]. */
+const RESOLUTION: Record<ModelDetail, Record<SegmentId, [number, number]>> = {
+  standard: { torso: [72, 10], upperArm: [48, 10], forearm: [40, 8], thigh: [56, 10], shin: [44, 8] },
+  precise: { torso: [112, 14], upperArm: [72, 14], forearm: [56, 12], thigh: [80, 14], shin: [64, 12] },
+};
 
 function toLinear(hex: string): RGB {
   const c = new Color(hex);
@@ -99,60 +96,97 @@ type Owners = Record<SegmentId, Int16Array>;
 
 /** One side (+x) of the limbs; the other side is the same tree mirrored. */
 function Limbs({
-  shape,
+  rig,
   lofts,
   owners,
   skinColor,
   onHover,
   onSelect,
 }: {
-  shape: ShapeFactors;
+  rig: BodyRig;
   lofts: Lofts;
   owners: Owners;
   skinColor: string;
   onHover?: (id: MuscleId | null) => void;
   onSelect?: (id: MuscleId) => void;
 }) {
-  const [sx, sy, sz] = JOINTS.shoulder;
-  const [hx, hy, hz] = JOINTS.hip;
+  const s = rig.scale;
+  const ga = rig.girthScale.upperArm;
+  const gf = rig.girthScale.forearm;
+  const gt = rig.girthScale.thigh;
   const skin = (seg: SegmentId) => (
     <SkinMesh loft={lofts[seg]} owner={owners[seg]} onHover={onHover} onSelect={onSelect} />
   );
   return (
     <>
-      <group position={[sx * shape.shoulderWidth * shape.girth, sy, sz]} rotation={[0, 0, JOINTS.armAngle]}>
+      <group position={rig.shoulder} rotation={[0, 0, rig.armAngle]}>
         {skin('upperArm')}
-        <Blob position={[0, -JOINTS.upperArmLength + 0.005, 0]} scale={[0.036, 0.036, 0.037]} color={skinColor} />
-        <group position={[0, -JOINTS.upperArmLength, 0]} rotation={[JOINTS.forearmBend, 0, -0.06]}>
+        <Blob
+          position={[0, -rig.upperArmLength + 0.005 * s, 0]}
+          scale={[0.036 * ga, 0.036 * ga, 0.037 * ga]}
+          color={skinColor}
+        />
+        <group position={[0, -rig.upperArmLength, 0]} rotation={[rig.forearmBend, 0, -0.06]}>
           {skin('forearm')}
-          <Blob position={[0, -JOINTS.forearmLength + 0.01, 0]} scale={[0.024, 0.024, 0.021]} color={skinColor} />
-          <Blob position={[0, -JOINTS.forearmLength - 0.075, 0.008]} scale={[0.024, 0.08, 0.046]} color={skinColor} />
+          <Blob
+            position={[0, -rig.forearmLength + 0.01 * s, 0]}
+            scale={[0.024 * gf, 0.024 * gf, 0.021 * gf]}
+            color={skinColor}
+          />
+          <Blob
+            position={[0, -rig.forearmLength - 0.075 * s, 0.008 * s]}
+            scale={[0.024 * s, 0.08 * s, 0.046 * s]}
+            color={skinColor}
+          />
         </group>
       </group>
-      <group position={[hx * shape.hipWidth * shape.girth, hy, hz]} rotation={[0, 0, JOINTS.legAngle]}>
+      <group position={rig.hip} rotation={[0, 0, rig.legAngle]}>
         {skin('thigh')}
-        <Blob position={[0, -JOINTS.thighLength, 0.004]} scale={[0.047, 0.05, 0.049]} color={skinColor} />
-        <group position={[0, -JOINTS.thighLength, 0]} rotation={[0, 0, -JOINTS.legAngle]}>
+        <Blob
+          position={[0, -rig.thighLength, 0.004 * s]}
+          scale={[0.047 * gt, 0.05 * gt, 0.049 * gt]}
+          color={skinColor}
+        />
+        <group position={[0, -rig.thighLength, 0]} rotation={[0, 0, -rig.legAngle]}>
           {skin('shin')}
-          <Blob position={[0, -JOINTS.shinLength - 0.035, 0.045]} scale={[0.044, 0.034, 0.115]} color={skinColor} />
+          <Blob
+            position={[0, -rig.shinLength - 0.035 * s, 0.045 * s]}
+            scale={[0.044 * s, 0.034 * s, 0.115 * s]}
+            color={skinColor}
+          />
         </group>
       </group>
     </>
   );
 }
 
-export function BodyScene({ shape, muscles, skinColor, selected, hovered, onHover, onSelect }: BodySceneProps) {
-  const lofts = useMemo<Lofts>(
-    () => ({
-      torso: buildLoft(torsoRings(shape), 72, 10),
-      upperArm: buildLoft(upperArmRings(shape), 48, 10),
-      forearm: buildLoft(forearmRings(shape), 40, 8),
-      thigh: buildLoft(thighRings(shape), 56, 10),
-      shin: buildLoft(shinRings(shape), 44, 8),
-    }),
-    [shape],
-  );
+export function BodyScene({
+  rig,
+  detail,
+  absDefinition,
+  muscles,
+  skinColor,
+  selected,
+  hovered,
+  onHover,
+  onSelect,
+}: BodySceneProps) {
+  const lofts = useMemo<Lofts>(() => {
+    const res = RESOLUTION[detail];
+    const out = {} as Lofts;
+    for (const seg of SEGMENTS) out[seg] = buildLoft(rig.rings[seg], res[seg][0], res[seg][1]);
+    return out;
+  }, [rig, detail]);
   useEffect(() => () => SEGMENTS.forEach((s) => lofts[s].geometry.dispose()), [lofts]);
+
+  const parts = useMemo(
+    () =>
+      Object.fromEntries(SEGMENTS.map((seg) => [seg, placeParts(seg, rig, detail)])) as Record<
+        SegmentId,
+        ReturnType<typeof placeParts>
+      >,
+    [rig, detail],
+  );
 
   const looks = useMemo(() => {
     const out = {} as Record<MuscleId, MuscleLook>;
@@ -169,26 +203,17 @@ export function BodyScene({ shape, muscles, skinColor, selected, hovered, onHove
   const owners = useMemo(() => {
     const skin = toLinear(skinColor);
     const out = {} as Owners;
-    for (const seg of SEGMENTS) {
-      out[seg] = deformLoft(lofts[seg], partsForSegment(seg), looks, { skin, absDefinition: shape.absDefinition });
-    }
+    for (const seg of SEGMENTS) out[seg] = deformLoft(lofts[seg], parts[seg], looks, { skin, absDefinition });
     return out;
-  }, [lofts, looks, skinColor, shape.absDefinition]);
+  }, [lofts, parts, looks, skinColor, absDefinition]);
 
   return (
-    <group scale={shape.scale}>
+    <group>
       <SkinMesh loft={lofts.torso} owner={owners.torso} onHover={onHover} onSelect={onSelect} />
-      <Blob position={[0, 1.695, 0.01]} scale={[0.08, 0.11, 0.096]} color={skinColor} />
-      <Limbs shape={shape} lofts={lofts} owners={owners} skinColor={skinColor} onHover={onHover} onSelect={onSelect} />
+      <Blob position={rig.head.center} scale={rig.head.radii} color={skinColor} />
+      <Limbs rig={rig} lofts={lofts} owners={owners} skinColor={skinColor} onHover={onHover} onSelect={onSelect} />
       <Mirror>
-        <Limbs
-          shape={shape}
-          lofts={lofts}
-          owners={owners}
-          skinColor={skinColor}
-          onHover={onHover}
-          onSelect={onSelect}
-        />
+        <Limbs rig={rig} lofts={lofts} owners={owners} skinColor={skinColor} onHover={onHover} onSelect={onSelect} />
       </Mirror>
     </group>
   );

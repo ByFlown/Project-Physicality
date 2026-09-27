@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run vision:assets",
     "dev": "vite",
+    "prebuild": "npm run vision:assets",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "oxlint --deny-warnings",

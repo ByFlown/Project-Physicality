@@ -205,6 +205,23 @@ export default function SettingsPage() {
               ]}
             />
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <span className="text-sm font-medium">3D model detail</span>
+              <p className="text-xs text-muted">
+                Precise uses your latest body scan and extra muscle heads. Standard is lighter for older devices.
+              </p>
+            </div>
+            <Segmented
+              ariaLabel="3D model detail"
+              value={data.settings.modelDetail}
+              onChange={(modelDetail) => updateSettings({ modelDetail })}
+              options={[
+                { value: 'standard', label: 'Standard' },
+                { value: 'precise', label: 'Precise' },
+              ]}
+            />
+          </div>
         </div>
       </Card>
 

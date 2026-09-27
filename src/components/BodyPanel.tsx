@@ -1,8 +1,11 @@
+import { ScanLine } from 'lucide-react';
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { BodyShape } from '../body3d/shape';
 import type { MuscleVisual } from '../body3d/BodyScene';
-import { hasWebGL, muscleVisuals, type ColorMode } from '../body3d/visuals';
+import { bulgesOnDate, hasWebGL, muscleVisuals, type ColorMode } from '../body3d/visuals';
+import { formatDate } from '../domain/dates';
+import { useData } from '../store/hooks';
 import type { Simulation } from '../domain/engine';
 import { MUSCLE_IDS, MUSCLES, type MuscleId } from '../domain/muscles';
 import { STATUS_META, TIER_LEGEND } from '../lib/colors';
@@ -78,6 +81,10 @@ export function BodyPanel({
   const navigate = useNavigate();
   const theme = useResolvedTheme();
   const visuals = useMemo(() => muscleVisuals(sim, mode), [sim, mode]);
+  const data = useData();
+  const detail = data.settings.modelDetail;
+  const scan = data.scans.length ? data.scans.reduce((a, b) => (b.date >= a.date ? b : a)) : null;
+  const bulgesAtScan = useMemo(() => (scan ? bulgesOnDate(sim, scan.date) : null), [sim, scan]);
   const select = onSelect ?? ((id: MuscleId) => navigate(`/muscles/${id}`));
   const webgl = hasWebGL();
 
@@ -110,6 +117,9 @@ export function BodyPanel({
           <BodyViewer
             className="h-[440px] sm:h-[560px]"
             shape={shape}
+            detail={detail}
+            scan={scan}
+            bulgesAtScan={bulgesAtScan}
             muscles={visuals}
             selected={selected}
             onSelect={select}
@@ -120,6 +130,26 @@ export function BodyPanel({
         <MuscleGrid visuals={visuals} sim={sim} onSelect={select} />
       )}
       <Legend mode={mode} />
+      <p className="flex items-center gap-1.5 text-xs text-muted">
+        <ScanLine size={14} />
+        {detail === 'precise' && scan ? (
+          <span>
+            Precise model, calibrated to your body scan from {formatDate(scan.date, { dateStyle: 'medium' })}.{' '}
+            <Link to="/scan" className="text-accent underline">
+              Re-scan
+            </Link>
+          </span>
+        ) : detail === 'precise' ? (
+          <span>
+            Scan your body to unlock the precise model.{' '}
+            <Link to="/scan" className="text-accent underline">
+              Start a scan
+            </Link>
+          </span>
+        ) : (
+          <span>Standard model. Switch to Precise in Settings to use your body scan.</span>
+        )}
+      </p>
     </div>
   );
 }

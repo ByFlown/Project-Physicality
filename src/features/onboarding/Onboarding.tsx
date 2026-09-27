@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, RotateCcw, ScanLine, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { LevelRing } from '../../components/LevelRing';
@@ -18,14 +18,28 @@ import {
   type MeasureSite,
   type MeasurementValues,
   type Profile,
+  type Scan,
   type SelfRating,
   type Sex,
 } from '../../domain/schema';
+import { measurementFromScan } from '../../scan/measurement';
+import { putScanPhoto } from '../../scan/photoStore';
+import { ScanWizard, type ScanResult } from '../scan/ScanWizard';
 import { tierColor } from '../../lib/colors';
-import { cmToDisplay, displayToCm, displayToKg, kgToDisplay, lengthUnit, round, weightUnit } from '../../lib/units';
+import {
+  cmToDisplay,
+  displayToCm,
+  displayToKg,
+  formatLength,
+  kgToDisplay,
+  lengthUnit,
+  round,
+  weightUnit,
+} from '../../lib/units';
 import { useAppStore } from '../../store/store';
 
-const STEPS = ['Basics', 'Experience', 'Body', 'Muscles', 'Review'] as const;
+const STEPS = ['Basics', 'Experience', 'Scan', 'Body', 'Muscles', 'Review'] as const;
+const SCAN_STEP = 2;
 
 interface Draft {
   name: string;
@@ -37,6 +51,8 @@ interface Draft {
   experience: Experience;
   measurements: MeasurementValues;
   selfRatings: Partial<Record<MuscleId, SelfRating>>;
+  scan?: Scan;
+  photos?: ScanResult['photos'];
 }
 
 const OPTIONAL_SITES: MeasureSite[] = ['chest', 'shoulders', 'upperArm', 'forearm', 'thigh', 'calf'];
@@ -61,7 +77,7 @@ export default function Onboarding() {
   const hasProfile = useAppStore((s) => s.data.profile !== null);
   const units = useAppStore((s) => s.data.settings.units);
   const updateSettings = useAppStore((s) => s.updateSettings);
-  const setProfile = useAppStore((s) => s.setProfile);
+  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const replaceData = useAppStore((s) => s.replaceData);
   const navigate = useNavigate();
 
@@ -73,10 +89,17 @@ export default function Onboarding() {
     measurements: {},
     selfRatings: {},
   });
-  const patch = (p: Partial<Draft>) => setDraft((d) => ({ ...d, ...p }));
+  const patch = (p: Partial<Draft>) =>
+    setDraft((d) => {
+      const next = { ...d, ...p };
+      // A scan is measured against height and sex; changing either invalidates it.
+      if (d.scan && (next.heightCm !== d.heightCm || next.sex !== d.sex))
+        return { ...next, scan: undefined, photos: undefined };
+      return next;
+    });
 
   const profile = useMemo(() => toProfile(draft), [draft]);
-  const baseline = useMemo(() => (profile ? computeBaseline(profile) : null), [profile]);
+  const baseline = useMemo(() => (profile ? computeBaseline(profile, draft.scan) : null), [profile, draft.scan]);
 
   if (hasProfile) return <Navigate to="/" replace />;
 
@@ -92,11 +115,23 @@ export default function Onboarding() {
     draft.weightKg >= 30 &&
     draft.weightKg <= 300;
 
-  const canContinue = step === 0 ? basicsValid : step === STEPS.length - 1 ? !!profile : true;
+  const canContinue =
+    step === 0
+      ? basicsValid
+      : step === SCAN_STEP
+        ? !!draft.scan
+        : step === STEPS.length - 1
+          ? !!profile && !!draft.scan
+          : true;
 
   const finish = () => {
-    if (!profile) return;
-    setProfile(profile);
+    if (!profile || !draft.scan) return;
+    const scan = draft.scan;
+    completeOnboarding(profile, scan, measurementFromScan(scan));
+    if (draft.photos) {
+      void putScanPhoto(scan.id, 'front', draft.photos.front).catch(() => {});
+      void putScanPhoto(scan.id, 'side', draft.photos.side).catch(() => {});
+    }
     navigate('/', { replace: true });
   };
 
@@ -251,9 +286,45 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === 2 && <BodyStep draft={draft} patch={patch} units={units} />}
+        {step === SCAN_STEP &&
+          draft.heightCm &&
+          (draft.scan ? (
+            <div className="flex flex-col gap-4">
+              <h2 className="flex items-center gap-2 text-xl font-bold">
+                <ScanLine size={20} className="text-accent" /> Body scan complete
+              </h2>
+              <p className="text-sm text-muted">
+                Confidence {Math.round(draft.scan.quality * 100)}%
+                {draft.scan.bodyFatPct !== undefined && <> · body fat ≈ {round(draft.scan.bodyFatPct, 1)}%</>}
+              </p>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
+                {(Object.entries(draft.scan.circumferences) as [MeasureSite, number][]).map(([site, v]) => (
+                  <div key={site} className="flex justify-between gap-2">
+                    <dt className="text-muted">{MEASURE_LABELS[site].replace(' (flexed)', '')}</dt>
+                    <dd className="num font-semibold">{formatLength(v, units)}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div>
+                <Button variant="secondary" size="sm" onClick={() => patch({ scan: undefined, photos: undefined })}>
+                  <RotateCcw size={14} /> Redo scan
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <ScanWizard
+              sex={draft.sex}
+              heightCm={draft.heightCm}
+              units={units}
+              date={today()}
+              onComplete={({ scan, photos }) => patch({ scan, photos })}
+              onCancel={() => setStep(1)}
+            />
+          ))}
 
-        {step === 3 && (
+        {step === 3 && <BodyStep draft={draft} patch={patch} units={units} />}
+
+        {step === 4 && (
           <div className="flex flex-col gap-4">
             <div>
               <h2 className="text-xl font-bold">Strong points & weak spots</h2>
@@ -292,7 +363,7 @@ export default function Onboarding() {
           </div>
         )}
 
-        {step === 4 && baseline && profile && (
+        {step === 5 && baseline && profile && (
           <div className="flex flex-col gap-5">
             <div>
               <h2 className="text-xl font-bold">Your starting point</h2>
@@ -323,10 +394,23 @@ export default function Onboarding() {
               {MUSCLE_IDS.map((id) => (
                 <div key={id} className="flex justify-between gap-2">
                   <span className="text-muted">{MUSCLES[id].name}</span>
-                  <span className="num font-semibold">L{levelFromXp(baseline.muscleXp[id]).level}</span>
+                  <span className="num font-semibold">
+                    L{levelFromXp(baseline.muscleXp[id]).level}
+                    {baseline.scanLevels[id] !== undefined && (
+                      <span className="ml-1 text-xs font-normal text-muted" title="Level implied by your scan">
+                        (scan {round(baseline.scanLevels[id]!, 0)})
+                      </span>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
+            {Object.keys(baseline.scanLevels).length > 0 && (
+              <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">
+                Muscles covered by a scan circumference start halfway between your experience-based level and the level
+                your measurements suggest. Girths can't separate muscle from fat, so the scan never decides alone.
+              </p>
+            )}
             {baseline.bodyFat.source === 'estimated' && (
               <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">
                 Body fat was estimated from BMI and age, which is rough. Add neck and waist measurements later for a
@@ -337,7 +421,7 @@ export default function Onboarding() {
         )}
       </Card>
 
-      <div className="mt-5 flex items-center justify-between">
+      <div className={cx('mt-5 flex items-center justify-between', step === SCAN_STEP && !draft.scan && 'hidden')}>
         <Button variant="ghost" onClick={() => setStep((s) => s - 1)}>
           <ArrowLeft size={16} /> Back
         </Button>
@@ -390,7 +474,8 @@ function BodyStep({
       <div>
         <h2 className="text-xl font-bold">Body composition</h2>
         <p className="text-sm text-muted">
-          Optional but recommended. Lean mass (FFMI) is the most objective signal for your starting level.
+          Optional. Your scan already estimated these; a known body-fat % or tape measurements are more accurate than
+          photos and take priority.
         </p>
       </div>
       <Field label="Body fat % (if you know it)" htmlFor="ob-bf" hint="From DEXA, calipers or a smart scale.">

@@ -12,6 +12,13 @@ stop training it.
   after a 7-day grace period. XP lost this way is banked as _muscle memory_, and you earn it back at double speed.
 - **Interactive 3D body.** A procedural body model scaled to your height, weight and body fat. Muscles are
   displacement fields on one continuous skin, coloured by level or status. Click a muscle to open its details.
+- **Photo body scans (required at onboarding).** Upload a front and a side photo. On-device MediaPipe models
+  detect your joints and silhouette, place measurement lines you can drag to correct, and turn them into
+  circumferences, a Navy body-fat estimate and a torso profile. Photos never leave the device and are not kept
+  unless you opt in. If detection fails, you place the lines by hand.
+- **Precise model (optional detail level).** The 3D body is rebuilt from your scanned proportions and calibrated
+  so muscle bulges at scan-date levels reproduce your photo silhouette exactly; from then on it grows and shrinks
+  with your levels. Adds extra muscle heads and a denser mesh. _Standard_ keeps the lighter procedural body.
 - **Starting assessment + daily tracking.** Onboarding blends your training experience with a fat-free-mass
   index (FFMI). Body fat comes from a reported value or U.S. Navy tape measurements. Daily you log workouts,
   body weight, sleep and protein, and take tape measurements every week or two.
@@ -38,6 +45,10 @@ npm run dev          # http://localhost:5173
 | `npm run test:e2e`           | End-to-end tests (Playwright, desktop + mobile)                  |
 | `npm run lint` / `typecheck` | oxlint (zero warnings) / `tsc -b`                                |
 | `npm run check`              | Everything CI runs, except e2e                                   |
+
+`npm run dev` and `npm run build` first run `npm run vision:assets`. It copies the MediaPipe WASM runtime and
+downloads the two pinned, checksum-verified models (~26 MB) into `public/vision/`, which is gitignored. On
+machines without internet, point `PHYSICALITY_POSE_MODEL` and `PHYSICALITY_SEGMENTER_MODEL` at local copies.
 
 Requires Node ≥ 20.19. For e2e tests, run `npx playwright install chromium` once. If you want to use a
 Chromium that is already installed, set `PLAYWRIGHT_CHROMIUM_PATH` to its path.
@@ -92,6 +103,9 @@ src/
     geometry.ts    elliptical lofts with per-vertex surface parameters
     anatomy.ts     body proportions + muscle footprints in surface coordinates
     deform.ts      bulge displacement, vertex colours, per-vertex muscle ownership (picking)
+    rig.ts         reference vs scanned body rig, footprint placement, calibration to the scan
+  scan/        Photo body scans: MediaPipe detector (on-device), mask/landmark geometry → measurement
+               lines, buildScan (circumferences, body fat, torso profile), optional photo store
   store/       Zustand store, IndexedDB persistence, write-ahead journal, cross-tab sync
   features/    Pages (dashboard, workout logger, check-in, measurements, progress, …)
   components/  UI primitives, charts (hand-rolled SVG, accessible), level ring
@@ -113,6 +127,9 @@ Key decisions:
 - Levels measure **training done and sustained**, not measured muscle. The only ground truth is your tape
   measurements and lean-mass trend, and the app charts both.
 - The Navy body-fat formula is accurate to roughly ±3–4 percentage points. FFMI inherits that error.
+- Photo-scan circumferences are typically within ±3–5 cm of a tape measure. Clothing, posture and camera angle
+  matter, and girths can't separate muscle from fat. Scan-based starting levels are blended, never used alone.
+- The first scan downloads about 37 MB of models, which are then cached for offline use.
 - Data lives in one browser. Export backups regularly. The app asks the browser to make storage persistent,
   but some browsers may refuse.
 

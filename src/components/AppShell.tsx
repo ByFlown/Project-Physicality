@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LineChart,
   Ruler,
+  ScanLine,
   Settings,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -28,6 +29,7 @@ const NAV: NavItem[] = [
   { to: '/check-in', label: 'Check-in', icon: <ClipboardList size={20} />, mobile: true },
   { to: '/progress', label: 'Progress', icon: <LineChart size={20} />, mobile: true },
   { to: '/history', label: 'History', icon: <History size={20} /> },
+  { to: '/scan', label: 'Body scan', icon: <ScanLine size={20} /> },
   { to: '/measurements', label: 'Measurements', icon: <Ruler size={20} /> },
   { to: '/exercises', label: 'Exercises', icon: <Activity size={20} /> },
   { to: '/how-it-works', label: 'How it works', icon: <BookOpen size={20} /> },

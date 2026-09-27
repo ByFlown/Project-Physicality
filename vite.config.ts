@@ -33,6 +33,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Body-scan models and WASM (~37 MB) are fetched on first scan and cached then, not precached.
+        globIgnores: ['**/vision/**'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/vision/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'vision-models', expiration: { maxEntries: 12 } },
+          },
+        ],
         navigateFallback: '/index.html',
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
