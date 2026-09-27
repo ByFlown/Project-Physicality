@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  Scan lab: manual harness for trying MediaPipe detection in the browser.
+  Run `npm run vision:assets`, `npm run dev`, then open
+  http://localhost:5173/tools/scan-lab/ and call from the console:
+    await pose('/tools/scan-lab/photo.jpg')   // landmarks only (CPU)
+    await seg('/tools/scan-lab/photo.jpg')    // multiclass category mask (CPU), drawn to the canvas
+  Put test photos next to this file; *.jpg / *.png here are gitignored.
+-->
+<html>
+  <body>
+    <img id="img" />
+    <canvas id="c"></canvas>
+    <script type="module">
+      import { FilesetResolver, ImageSegmenter, PoseLandmarker } from '@mediapipe/tasks-vision';
+
+      const fileset = () => FilesetResolver.forVisionTasks('/vision');
+      const load = async (src) => {
+        const img = document.getElementById('img');
+        img.src = src;
+        await img.decode();
+        return img;
+      };
+
+      // NOTE: do not request outputSegmentationMasks from PoseLandmarker —
+      // CPU aborts (image_frame.cc "1 == ChannelSize()"), GPU read back zeros
+      // under SwiftShader. Use ImageSegmenter for the silhouette instead.
+      window.pose = async (src) => {
+        const lm = await PoseLandmarker.createFromOptions(await fileset(), {
+          baseOptions: { modelAssetPath: '/vision/pose_landmarker_full.task', delegate: 'CPU' },
+          runningMode: 'IMAGE',
+          numPoses: 1,
+        });
+        const img = await load(src);
+        const t = performance.now();
+        let out;
+        lm.detect(img, (r) => (out = { poses: r.landmarks.length, landmarks: r.landmarks[0] ?? null }));
+        return { ...out, ms: Math.round(performance.now() - t) };
+      };
+
+      window.seg = async (src) => {
+        const s = await ImageSegmenter.createFromOptions(await fileset(), {
+          baseOptions: { modelAssetPath: '/vision/selfie_multiclass_256x256.tflite', delegate: 'CPU' },
+          runningMode: 'IMAGE',
+          outputCategoryMask: true,
+          outputConfidenceMasks: false,
+        });
+        const img = await load(src);
+        const t = performance.now();
+        let out;
+        s.segment(img, (r) => {
+          const m = r.categoryMask;
+          const a = m.getAsUint8Array();
+          const counts = {};
+          for (const v of a) counts[v] = (counts[v] || 0) + 1;
+          const c = document.getElementById('c');
+          c.width = m.width;
+          c.height = m.height;
+          const ctx = c.getContext('2d');
+          const id = ctx.createImageData(m.width, m.height);
+          const pal = [
+            [0, 0, 0],
+            [255, 200, 0],
+            [255, 120, 120],
+            [0, 200, 255],
+            [120, 255, 120],
+            [200, 0, 255],
+          ];
+          for (let i = 0; i < a.length; i++) {
+            const p = pal[a[i]] ?? [255, 255, 255];
+            id.data.set([p[0], p[1], p[2], 255], i * 4);
+          }
+          ctx.putImageData(id, 0, 0);
+          out = { width: m.width, height: m.height, counts };
+        });
+        return { ...out, ms: Math.round(performance.now() - t) };
+      };
+    </script>
+  </body>
+</html>

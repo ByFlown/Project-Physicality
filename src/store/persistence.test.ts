@@ -41,3 +41,25 @@ describe('persistence', () => {
     expect(bad.ok).toBe(false);
   });
 });
+
+describe('migrations', () => {
+  it('upgrades v1 data to the current version', async () => {
+    const { parseAppData } = await import('./persistence');
+    const v1 = {
+      version: 1,
+      profile: null,
+      workouts: [],
+      checkIns: [],
+      measurements: [],
+      customExercises: [],
+      settings: { units: 'imperial', theme: 'dark' },
+    };
+    const parsed = parseAppData(v1);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.data.version).toBe(2);
+      expect(parsed.data.scans).toEqual([]);
+      expect(parsed.data.settings).toEqual({ units: 'imperial', theme: 'dark', modelDetail: 'precise' });
+    }
+  });
+});

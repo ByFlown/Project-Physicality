@@ -113,6 +113,9 @@ export const measurementSchema = z.object({
   date: localDate,
   values: measurementValuesSchema,
   bodyFatPct: z.number().min(3).max(60).optional(),
+  /** Where the values came from; tape is assumed when absent. */
+  source: z.enum(['tape', 'scan']).optional(),
+  scanId: id.optional(),
 });
 export type Measurement = z.infer<typeof measurementSchema>;
 
@@ -128,10 +131,70 @@ export type CustomExercise = z.infer<typeof customExerciseSchema>;
 export const settingsSchema = z.object({
   units: z.enum(['metric', 'imperial']),
   theme: z.enum(['system', 'dark', 'light']),
+  /** 'precise' uses scanned proportions, more muscle heads and a denser mesh. */
+  modelDetail: z.enum(['standard', 'precise']),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
-export const DATA_VERSION = 1;
+const cm = z.number().min(0).max(300);
+
+/** A cross-section measured from photos: full width (front view) and depth (side view), in cm. */
+export const sectionSchema = z.object({ w: cm, d: cm });
+export type Section = z.infer<typeof sectionSchema>;
+
+/**
+ * Body geometry derived from a front + side photo scan. Only derived numbers
+ * are stored here; the photos themselves are optional and kept separately.
+ * Heights are centimetres above the floor.
+ */
+export const scanSchema = z.object({
+  id,
+  date: localDate,
+  heightCm: z.number().min(120).max(250),
+  method: z.enum(['auto', 'adjusted', 'manual']),
+  /** 0..1 — confidence from detection quality, clothing and pose checks. */
+  quality: z.number().min(0).max(1),
+  warnings: z.array(z.string().max(200)).max(12),
+  joints: z.object({
+    shoulderY: cm,
+    /** Half the distance between the shoulder joints. */
+    shoulderHalf: cm,
+    armpitY: cm,
+    hipY: cm,
+    hipHalf: cm,
+    crotchY: cm,
+    kneeY: cm,
+    ankleY: cm,
+    neckY: cm,
+    upperArmLength: cm,
+    forearmLength: cm,
+    /** Arm abduction in the front photo, radians from vertical. */
+    armAngle: z.number().min(0).max(1.2),
+  }),
+  /** Torso profile from crotch to armpit: half width, and front/back extent from the body axis. */
+  torso: z
+    .array(z.object({ y: cm, half: cm, front: cm, back: cm }))
+    .min(3)
+    .max(200),
+  sections: z.object({
+    neck: sectionSchema,
+    shoulders: sectionSchema,
+    chest: sectionSchema,
+    waist: sectionSchema,
+    hips: sectionSchema,
+    upperArm: sectionSchema,
+    forearm: sectionSchema,
+    thigh: sectionSchema,
+    calf: sectionSchema,
+  }),
+  circumferences: measurementValuesSchema,
+  bodyFatPct: z.number().min(3).max(60).optional(),
+  /** Whether front/side photos were kept on this device. */
+  photosKept: z.boolean(),
+});
+export type Scan = z.infer<typeof scanSchema>;
+
+export const DATA_VERSION = 2;
 
 export const appDataSchema = z.object({
   version: z.literal(DATA_VERSION),
@@ -140,11 +203,12 @@ export const appDataSchema = z.object({
   checkIns: z.array(checkInSchema),
   measurements: z.array(measurementSchema),
   customExercises: z.array(customExerciseSchema),
+  scans: z.array(scanSchema),
   settings: settingsSchema,
 });
 export type AppData = z.infer<typeof appDataSchema>;
 
-export const DEFAULT_SETTINGS: Settings = { units: 'metric', theme: 'system' };
+export const DEFAULT_SETTINGS: Settings = { units: 'metric', theme: 'system', modelDetail: 'precise' };
 
 export function emptyAppData(): AppData {
   return {
@@ -154,6 +218,7 @@ export function emptyAppData(): AppData {
     checkIns: [],
     measurements: [],
     customExercises: [],
+    scans: [],
     settings: { ...DEFAULT_SETTINGS },
   };
 }

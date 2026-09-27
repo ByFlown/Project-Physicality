@@ -10,13 +10,26 @@ function db(): UseStore {
   return store;
 }
 
-/** Upgrade older persisted shapes to the current schema. */
+type Raw = Record<string, unknown>;
+
+/** v1 → v2: body scans and the model-detail setting were added. */
+function migrateV1toV2(raw: Raw): Raw {
+  const settings = (raw.settings ?? {}) as Raw;
+  return {
+    ...raw,
+    version: 2,
+    scans: [],
+    settings: { modelDetail: 'precise', ...settings },
+  };
+}
+
+/** Upgrade older persisted shapes to the current schema, one version at a time. */
 export function migrate(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
-  const version = (raw as { version?: unknown }).version;
-  // Future migrations: if (version === 1) raw = migrateV1toV2(raw) ...
-  if (version === DATA_VERSION) return raw;
-  return raw;
+  let data = raw as Raw;
+  if (data.version === 1) data = migrateV1toV2(data);
+  if (data.version !== DATA_VERSION) return data;
+  return data;
 }
 
 export type ParseResult = { ok: true; data: AppData } | { ok: false; error: string };

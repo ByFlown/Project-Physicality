@@ -136,6 +136,7 @@ export function buildDemoData(endDate: LocalDate, weeks = 12): AppData {
     checkIns,
     measurements,
     customExercises: [],
+    scans: [],
     settings: { ...DEFAULT_SETTINGS },
   };
 }

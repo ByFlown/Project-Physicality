@@ -28,3 +28,8 @@ test-results
 playwright-report
 coverage
 *.tsbuildinfo
+public/vision
+dev-lab
+tools/scan-lab/*.jpg
+tools/scan-lab/*.jpeg
+tools/scan-lab/*.png
