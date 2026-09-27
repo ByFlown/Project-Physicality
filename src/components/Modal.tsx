@@ -42,7 +42,12 @@ export function Modal({
         <div className="flex max-h-[85dvh] flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
             <h2 className="text-lg font-bold">{title}</h2>
-            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1 text-muted hover:text-fg">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-lg p-1 text-muted hover:text-fg"
+            >
               <X size={20} />
             </button>
           </div>

@@ -26,4 +26,3 @@ export const useToasts = create<ToastState>()((set, get) => ({
 }));
 
 export const toast = (t: Omit<Toast, 'id'>) => useToasts.getState().push(t);
-

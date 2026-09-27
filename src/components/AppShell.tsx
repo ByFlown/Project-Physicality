@@ -1,4 +1,14 @@
-import { Activity, BookOpen, ClipboardList, Dumbbell, History, LayoutDashboard, LineChart, Ruler, Settings } from 'lucide-react';
+import {
+  Activity,
+  BookOpen,
+  ClipboardList,
+  Dumbbell,
+  History,
+  LayoutDashboard,
+  LineChart,
+  Ruler,
+  Settings,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router';
 import { useSimulation } from '../store/hooks';
@@ -30,14 +40,24 @@ function Brand() {
     <div className="flex items-center gap-3 px-2">
       <svg viewBox="0 0 32 32" className="h-9 w-9" aria-hidden>
         <rect width="32" height="32" rx="9" fill="var(--accent)" />
-        <path d="M9 23V9h7.5a4.5 4.5 0 0 1 0 9H9" fill="none" stroke="var(--accent-fg)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M9 23V9h7.5a4.5 4.5 0 0 1 0 9H9"
+          fill="none"
+          stroke="var(--accent-fg)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
       <div className="min-w-0">
         <div className="text-sm leading-tight font-bold">Physicality</div>
         {sim && (
           <div className="text-xs text-muted">
-            Level <span className="num font-semibold" style={{ color: tierColor(sim.overall.level) }}>{sim.overall.level}</span> ·{' '}
-            {sim.overall.tier.name}
+            Level{' '}
+            <span className="num font-semibold" style={{ color: tierColor(sim.overall.level) }}>
+              {sim.overall.level}
+            </span>{' '}
+            · {sim.overall.tier.name}
           </div>
         )}
       </div>

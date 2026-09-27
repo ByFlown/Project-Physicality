@@ -51,7 +51,10 @@ export function compareDates(a: LocalDate, b: LocalDate): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-export function formatDate(date: LocalDate, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }): string {
+export function formatDate(
+  date: LocalDate,
+  opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' },
+): string {
   const idx = dayIndex(date);
   return new Intl.DateTimeFormat(undefined, { ...opts, timeZone: 'UTC' }).format(new Date(idx * DAY_MS));
 }

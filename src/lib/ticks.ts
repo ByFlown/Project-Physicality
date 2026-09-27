@@ -12,6 +12,10 @@ export function niceTicks(min: number, max: number, count = 4): number[] {
   const step = (norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1) * mag;
   const start = Math.floor(min / step) * step;
   const ticks: number[] = [];
-  for (let v = start; v <= max + step * 0.5; v += step) ticks.push(Math.round(v / step) * step);
+  for (let i = 0; i < 50; i++) {
+    const v = Math.round((start + i * step) / step) * step;
+    ticks.push(v);
+    if (v >= max - step * 1e-9) break;
+  }
   return ticks;
 }

@@ -75,8 +75,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       commit((d) => ({ ...d, profile }));
       void requestPersistentStorage();
     },
-    updateProfile: (patch) =>
-      commit((d) => (d.profile ? { ...d, profile: { ...d.profile, ...patch } } : d)),
+    updateProfile: (patch) => commit((d) => (d.profile ? { ...d, profile: { ...d.profile, ...patch } } : d)),
 
     saveWorkout: (workout) => commit((d) => ({ ...d, workouts: upsertBy(d.workouts, workout, (w) => w.id) })),
     deleteWorkout: (id) => commit((d) => ({ ...d, workouts: d.workouts.filter((w) => w.id !== id) })),
@@ -93,8 +92,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     saveMeasurement: (m) => commit((d) => ({ ...d, measurements: upsertBy(d.measurements, m, (x) => x.id) })),
     deleteMeasurement: (id) => commit((d) => ({ ...d, measurements: d.measurements.filter((m) => m.id !== id) })),
 
-    saveCustomExercise: (e) =>
-      commit((d) => ({ ...d, customExercises: upsertBy(d.customExercises, e, (x) => x.id) })),
+    saveCustomExercise: (e) => commit((d) => ({ ...d, customExercises: upsertBy(d.customExercises, e, (x) => x.id) })),
     deleteCustomExercise: (id) =>
       commit((d) => ({ ...d, customExercises: d.customExercises.filter((e) => e.id !== id) })),
 

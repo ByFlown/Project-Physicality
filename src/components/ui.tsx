@@ -9,7 +9,6 @@ import {
 } from 'react';
 import { cx } from '../lib/cx';
 
-
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
@@ -41,10 +40,18 @@ export const Button = forwardRef<
 });
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cx('rounded-2xl border border-border bg-surface p-4 sm:p-5', className)} {...props} />;
+  return <div className={cx('min-w-0 rounded-2xl border border-border bg-surface p-4 sm:p-5', className)} {...props} />;
 }
 
-export function CardTitle({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {
+export function CardTitle({
+  children,
+  action,
+  className,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={cx('mb-3 flex items-center justify-between gap-3', className)}>
       <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">{children}</h2>
@@ -149,7 +156,7 @@ export function NumberInput({
           const n = Number(raw);
           if (!Number.isNaN(n)) onChange(n);
         }}
-        className={cx(inputClass, 'num', unit && 'pr-10')}
+        className={cx(inputClass, 'num min-w-0', unit && 'pr-10')}
       />
       {unit && (
         <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted">{unit}</span>
@@ -172,7 +179,11 @@ export function Segmented<T extends string>({
   size?: 'sm' | 'md';
 }) {
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className="inline-flex rounded-xl border border-border bg-surface-2 p-1">
+    <div
+      role="radiogroup"
+      aria-label={ariaLabel}
+      className="inline-flex rounded-xl border border-border bg-surface-2 p-1"
+    >
       {options.map((o) => (
         <button
           key={o.value}
@@ -214,7 +225,10 @@ export function ProgressBar({
       aria-label={label}
       className={cx('h-2 w-full overflow-hidden rounded-full bg-surface-2', className)}
     >
-      <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, background: color }} />
+      <div
+        className="h-full rounded-full transition-[width] duration-500"
+        style={{ width: `${pct}%`, background: color }}
+      />
     </div>
   );
 }

@@ -28,7 +28,10 @@ function ActivityGrid({ workouts, checkIns, today }: { workouts: Set<string>; ch
   const days = Array.from({ length: weeks * 7 }, (_, i) => addDays(start, i));
   return (
     <div>
-      <div className="grid grid-flow-col grid-rows-7 gap-[3px]" style={{ gridTemplateColumns: `repeat(${weeks}, minmax(0, 1fr))` }}>
+      <div
+        className="grid grid-flow-col gap-[3px] overflow-x-auto"
+        style={{ gridTemplateColumns: `repeat(${weeks}, 14px)`, gridTemplateRows: 'repeat(7, 14px)' }}
+      >
         {days.map((d) => {
           const trained = workouts.has(d);
           const logged = checkIns.has(d);
@@ -36,10 +39,7 @@ function ActivityGrid({ workouts, checkIns, today }: { workouts: Set<string>; ch
             <div
               key={d}
               title={`${formatDate(d, { dateStyle: 'medium' })}${trained ? ' · workout' : ''}${logged ? ' · check-in' : ''}`}
-              className={cx(
-                'aspect-square rounded-[3px]',
-                trained ? 'bg-accent' : logged ? 'bg-accent/35' : 'bg-surface-2',
-              )}
+              className={cx('rounded-[3px]', trained ? 'bg-accent' : logged ? 'bg-accent/35' : 'bg-surface-2')}
             />
           );
         })}
@@ -62,7 +62,9 @@ export default function HistoryPage() {
   const exercises = useExerciseIndex();
 
   const grouped = useMemo(() => {
-    const sorted = [...data.workouts].sort((a, b) => compareDates(b.date, a.date) || dayIndex(b.date) - dayIndex(a.date));
+    const sorted = [...data.workouts].sort(
+      (a, b) => compareDates(b.date, a.date) || dayIndex(b.date) - dayIndex(a.date),
+    );
     const groups = new Map<string, Workout[]>();
     for (const w of sorted) {
       const key = w.date.slice(0, 7);
@@ -110,9 +112,14 @@ export default function HistoryPage() {
                   const sets = w.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.warmup).length, 0);
                   return (
                     <li key={w.id}>
-                      <Link to={`/workout/${w.id}`} className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-surface-2">
+                      <Link
+                        to={`/workout/${w.id}`}
+                        className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-surface-2"
+                      >
                         <div className="flex w-12 shrink-0 flex-col items-center">
-                          <span className="text-[11px] text-muted uppercase">{formatDate(w.date, { weekday: 'short' })}</span>
+                          <span className="text-[11px] text-muted uppercase">
+                            {formatDate(w.date, { weekday: 'short' })}
+                          </span>
                           <span className="num text-lg leading-tight font-bold">{Number(w.date.slice(8))}</span>
                         </div>
                         <div className="min-w-0 flex-1">

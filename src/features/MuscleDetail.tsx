@@ -97,11 +97,7 @@ export default function MuscleDetail() {
             </span>
           }
         />
-        <Stat
-          label="Last trained"
-          value={m.lastTrainedDate ? formatDate(m.lastTrainedDate) : '—'}
-          sub={decayText}
-        />
+        <Stat label="Last trained" value={m.lastTrainedDate ? formatDate(m.lastTrainedDate) : '—'} sub={decayText} />
         <Stat
           label="Muscle memory"
           value={`${formatNumber(m.memoryXp)} XP`}
@@ -112,14 +108,24 @@ export default function MuscleDetail() {
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <CardTitle>Level · last 120 days</CardTitle>
-          <LineChart label={`${info.name} level over time`} points={series} color={color} format={(v) => round(v, 1).toString()} />
+          <LineChart
+            label={`${info.name} level over time`}
+            points={series}
+            color={color}
+            format={(v) => round(v, 1).toString()}
+          />
         </Card>
         <Card>
           <BodyPanel
             sim={sim}
             selected={id}
             onSelect={(next) => navigate(`/muscles/${next}`, { replace: true })}
-            shape={{ sex: data.profile.sex, heightCm: data.profile.heightCm, weightKg: body.current.weightKg, bodyFatPct: body.current.bodyFatPct }}
+            shape={{
+              sex: data.profile.sex,
+              heightCm: data.profile.heightCm,
+              weightKg: body.current.weightKg,
+              bodyFatPct: body.current.bodyFatPct,
+            }}
             header={<h2 className="text-sm font-semibold tracking-wide text-muted uppercase">Location</h2>}
           />
         </Card>
@@ -144,7 +150,10 @@ export default function MuscleDetail() {
           <CardTitle>Your strongest lifts for {info.name.toLowerCase()}</CardTitle>
           {yourLifts.length === 0 ? (
             <p className="text-sm text-muted">
-              No lifts logged yet. <Link to="/workout/new" className="text-accent underline">Log a workout</Link>
+              No lifts logged yet.{' '}
+              <Link to="/workout/new" className="text-accent underline">
+                Log a workout
+              </Link>
             </p>
           ) : (
             <ul className="flex flex-col gap-1 text-sm">
@@ -152,7 +161,8 @@ export default function MuscleDetail() {
                 <li key={r.exerciseId} className="flex items-center justify-between gap-2">
                   <span>{exercises.get(r.exerciseId)?.name ?? r.exerciseId}</span>
                   <span className="num text-xs text-muted">
-                    est. 1RM <span className="font-semibold text-fg">{formatWeight(r.e1rm, data.settings.units)}</span> · {formatDate(r.date)}
+                    est. 1RM <span className="font-semibold text-fg">{formatWeight(r.e1rm, data.settings.units)}</span>{' '}
+                    · {formatDate(r.date)}
                   </span>
                 </li>
               ))}

@@ -19,7 +19,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div role="alert" className="mx-auto flex min-h-[60dvh] max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
+      <div
+        role="alert"
+        className="mx-auto flex min-h-[60dvh] max-w-md flex-col items-center justify-center gap-4 p-6 text-center"
+      >
         <h1 className="text-xl font-bold">Something went wrong</h1>
         <p className="text-sm text-muted">
           Your data is safe on this device. Reload the page to continue. If this keeps happening, export a backup from

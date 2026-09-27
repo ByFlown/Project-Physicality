@@ -133,7 +133,12 @@ export default function WorkoutEditor() {
     const levelUps = events.filter((e) => e.kind !== 'levelDown');
     toast({
       title: `Workout saved · +${Math.round(preview?.overallGain ?? 0)} overall XP`,
-      body: levelUps.length ? levelUps.slice(0, 3).map((e) => describeEventShort(e, exercises)).join(' · ') : undefined,
+      body: levelUps.length
+        ? levelUps
+            .slice(0, 3)
+            .map((e) => describeEventShort(e, exercises))
+            .join(' · ')
+        : undefined,
       tone: levelUps.some((e) => e.kind === 'levelUp') ? 'level' : 'success',
     });
     navigate('/');
@@ -159,7 +164,11 @@ export default function WorkoutEditor() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title={isNew ? 'Log workout' : 'Edit workout'}
-        subtitle={isNew ? 'Log every working set. RIR = reps you could still have done.' : formatDate(workout.date, { dateStyle: 'full' })}
+        subtitle={
+          isNew
+            ? 'Log every working set. RIR = reps you could still have done.'
+            : formatDate(workout.date, { dateStyle: 'full' })
+        }
         action={
           <div className="flex gap-2">
             {isNew && sortedHistory.length > 0 && workout.exercises.length === 0 && (
@@ -201,12 +210,18 @@ export default function WorkoutEditor() {
           />
         </Field>
         <Field label="Duration" htmlFor="w-dur">
-          <NumberInput id="w-dur" unit="min" step={1} value={workout.durationMin} onChange={(v) => update({ durationMin: v === undefined ? undefined : Math.round(v) })} />
+          <NumberInput
+            id="w-dur"
+            unit="min"
+            step={1}
+            value={workout.durationMin}
+            onChange={(v) => update({ durationMin: v === undefined ? undefined : Math.round(v) })}
+          />
         </Field>
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
           {workout.exercises.map((entry) => {
             const ex = exercises.get(entry.exerciseId);
             const last = lastPerformance(entry.exerciseId);
@@ -229,7 +244,9 @@ export default function WorkoutEditor() {
                   <button
                     type="button"
                     aria-label={`Remove ${ex?.name ?? 'exercise'}`}
-                    onClick={() => setWorkout((w) => ({ ...w, exercises: w.exercises.filter((e) => e.id !== entry.id) }))}
+                    onClick={() =>
+                      setWorkout((w) => ({ ...w, exercises: w.exercises.filter((e) => e.id !== entry.id) }))
+                    }
                     className="rounded-lg p-1 text-muted hover:text-bad"
                   >
                     <X size={18} />
@@ -245,7 +262,10 @@ export default function WorkoutEditor() {
                   <span />
                   {entry.sets.map((set, i) => {
                     const patchSet = (p: Partial<WorkoutSet>) =>
-                      updateEntry(entry.id, (e) => ({ ...e, sets: e.sets.map((s) => (s.id === set.id ? { ...s, ...p } : s)) }));
+                      updateEntry(entry.id, (e) => ({
+                        ...e,
+                        sets: e.sets.map((s) => (s.id === set.id ? { ...s, ...p } : s)),
+                      }));
                     return (
                       <SetRow
                         key={set.id}
@@ -253,7 +273,9 @@ export default function WorkoutEditor() {
                         set={set}
                         units={units}
                         onChange={patchSet}
-                        onRemove={() => updateEntry(entry.id, (e) => ({ ...e, sets: e.sets.filter((s) => s.id !== set.id) }))}
+                        onRemove={() =>
+                          updateEntry(entry.id, (e) => ({ ...e, sets: e.sets.filter((s) => s.id !== set.id) }))
+                        }
                       />
                     );
                   })}
@@ -262,7 +284,9 @@ export default function WorkoutEditor() {
                   variant="ghost"
                   size="sm"
                   className="mt-2"
-                  onClick={() => updateEntry(entry.id, (e) => ({ ...e, sets: [...e.sets, newSet(e.sets[e.sets.length - 1])] }))}
+                  onClick={() =>
+                    updateEntry(entry.id, (e) => ({ ...e, sets: [...e.sets, newSet(e.sets[e.sets.length - 1])] }))
+                  }
                   disabled={entry.sets.length >= 50}
                 >
                   <Plus size={14} /> Add set
@@ -271,12 +295,17 @@ export default function WorkoutEditor() {
             );
           })}
 
-          <Button variant="secondary" size="lg" onClick={() => setPickerOpen(true)} disabled={workout.exercises.length >= 40}>
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => setPickerOpen(true)}
+            disabled={workout.exercises.length >= 40}
+          >
             <Plus size={18} /> Add exercise
           </Button>
         </div>
 
-        <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
           <Card>
             <CardTitle>XP preview</CardTitle>
             {gains.length === 0 ? (
@@ -286,7 +315,10 @@ export default function WorkoutEditor() {
                 {gains.map(([mid, xp]) => (
                   <li key={mid} className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full" style={{ background: sim ? levelColor(fractionalLevel(sim.muscles[mid].xp)) : 'var(--accent)' }} />
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: sim ? levelColor(fractionalLevel(sim.muscles[mid].xp)) : 'var(--accent)' }}
+                      />
                       {MUSCLES[mid].name}
                     </span>
                     <span className="num font-semibold text-good">+{Math.round(xp)}</span>
@@ -313,7 +345,8 @@ export default function WorkoutEditor() {
           </Button>
           {preview && workout.exercises.length > 0 && (
             <p className="text-center text-xs text-muted">
-              Volume: {formatWeight(volume(workout), units, 0)} · {workout.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.warmup).length, 0)} working sets
+              Volume: {formatWeight(volume(workout), units, 0)} ·{' '}
+              {workout.exercises.reduce((n, e) => n + e.sets.filter((s) => !s.warmup).length, 0)} working sets
             </p>
           )}
         </div>
@@ -331,7 +364,10 @@ export default function WorkoutEditor() {
 }
 
 function volume(w: Workout): number {
-  return w.exercises.reduce((sum, e) => sum + e.sets.reduce((s, set) => s + (set.warmup ? 0 : set.reps * set.weightKg), 0), 0);
+  return w.exercises.reduce(
+    (sum, e) => sum + e.sets.reduce((s, set) => s + (set.warmup ? 0 : set.reps * set.weightKg), 0),
+    0,
+  );
 }
 
 function SetRow({
@@ -347,7 +383,8 @@ function SetRow({
   onChange: (p: Partial<WorkoutSet>) => void;
   onRemove: () => void;
 }) {
-  const cell = 'h-10 w-full rounded-lg border border-border bg-surface-2 px-2 text-center text-sm text-fg num focus:border-accent focus:outline-none';
+  const cell =
+    'h-10 w-full min-w-0 rounded-lg border border-border bg-surface-2 px-2 text-center text-sm text-fg num focus:border-accent focus:outline-none';
   return (
     <>
       <span className={cx('text-center text-sm font-semibold', set.warmup ? 'text-muted' : 'text-fg')}>
@@ -394,7 +431,12 @@ function SetRow({
         onChange={(e) => onChange({ warmup: e.target.checked || undefined })}
         className="mx-auto h-4 w-4 accent-[var(--accent)]"
       />
-      <button type="button" aria-label={`Remove set ${index + 1}`} onClick={onRemove} className="mx-auto rounded p-1 text-muted hover:text-bad">
+      <button
+        type="button"
+        aria-label={`Remove set ${index + 1}`}
+        onClick={onRemove}
+        className="mx-auto rounded p-1 text-muted hover:text-bad"
+      >
         <X size={16} />
       </button>
     </>

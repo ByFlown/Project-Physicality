@@ -38,7 +38,8 @@ function RecoveredNotice() {
   if (!recoveredFrom) return null;
   return (
     <div role="alert" className="border-b border-warn/40 bg-warn/10 px-4 py-2 text-center text-sm">
-      Your saved data could not be read and was set aside ({recoveredFrom}). Import a backup from Settings to restore it.
+      Your saved data could not be read and was set aside ({recoveredFrom}). Import a backup from Settings to restore
+      it.
     </div>
   );
 }

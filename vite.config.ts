@@ -1,10 +1,10 @@
-import { readFileSync } from 'node:fs'
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
-import { defineConfig } from 'vitest/config'
+import { readFileSync } from 'node:fs';
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+import { defineConfig } from 'vitest/config';
 
-const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -44,8 +44,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/three') || id.includes('@react-three')) return 'three'
-          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) return 'react'
+          if (id.includes('node_modules/three') || id.includes('@react-three')) return 'three';
+          if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) return 'react';
         },
       },
     },
@@ -56,4 +56,4 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     css: false,
   },
-})
+});

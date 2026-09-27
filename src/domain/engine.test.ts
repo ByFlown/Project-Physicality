@@ -63,9 +63,7 @@ describe('baseline assessment', () => {
   });
 
   it('estimates body fat from navy tape measurements when not reported', () => {
-    const b = computeBaseline(
-      profile({ startBodyFatPct: undefined, startMeasurements: { neck: 38, waist: 85 } }),
-    );
+    const b = computeBaseline(profile({ startBodyFatPct: undefined, startMeasurements: { neck: 38, waist: 85 } }));
     expect(b.bodyFat.source).toBe('navy');
     expect(b.bodyFat.value).toBeCloseTo(navyBodyFat('male', 180, { neck: 38, waist: 85 })!, 5);
   });

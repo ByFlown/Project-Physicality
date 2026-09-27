@@ -5,7 +5,13 @@ import { toast } from '../components/toast-store';
 import { Button, Card, CardTitle, EmptyState, Field, Input, NumberInput, PageHeader } from '../components/ui';
 import { navyBodyFat } from '../domain/bodycomp';
 import { compareDates, formatDate } from '../domain/dates';
-import { MEASURE_LABELS, MEASURE_SITES, measurementSchema, type MeasureSite, type MeasurementValues } from '../domain/schema';
+import {
+  MEASURE_LABELS,
+  MEASURE_SITES,
+  measurementSchema,
+  type MeasureSite,
+  type MeasurementValues,
+} from '../domain/schema';
 import { uid } from '../lib/id';
 import { cmToDisplay, displayToCm, kgToDisplay, lengthUnit, round, weightUnit } from '../lib/units';
 import { useBodyStats, useData, useToday } from '../store/hooks';
@@ -24,14 +30,19 @@ export default function MeasurementsPage() {
   const [values, setValues] = useState<MeasurementValues>({});
   const [bodyFat, setBodyFat] = useState<number | undefined>();
 
-  const sorted = useMemo(() => [...data.measurements].sort((a, b) => compareDates(b.date, a.date)), [data.measurements]);
+  const sorted = useMemo(
+    () => [...data.measurements].sort((a, b) => compareDates(b.date, a.date)),
+    [data.measurements],
+  );
 
   const seriesBySite = useMemo(() => {
     const out = {} as Record<MeasureSite, { date: string; value: number }[]>;
     if (!profile) return out;
     for (const site of MEASURE_SITES) {
       const pts = [
-        ...(profile.startMeasurements[site] !== undefined ? [{ date: profile.startDate, value: profile.startMeasurements[site]! }] : []),
+        ...(profile.startMeasurements[site] !== undefined
+          ? [{ date: profile.startDate, value: profile.startMeasurements[site]! }]
+          : []),
         ...[...data.measurements]
           .sort((a, b) => compareDates(a.date, b.date))
           .filter((m) => m.values[site] !== undefined)
@@ -72,9 +83,19 @@ export default function MeasurementsPage() {
       <Card className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
           <Field label="Date" htmlFor="m-date">
-            <Input id="m-date" type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            <Input
+              id="m-date"
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+            />
           </Field>
-          <Field label="Body fat % (optional)" htmlFor="m-bf" hint={navy !== undefined ? `Navy estimate from tape: ${navy}%` : 'From a scan or calipers, if you have one'}>
+          <Field
+            label="Body fat % (optional)"
+            htmlFor="m-bf"
+            hint={navy !== undefined ? `Navy estimate from tape: ${navy}%` : 'From a scan or calipers, if you have one'}
+          >
             <NumberInput id="m-bf" unit="%" value={bodyFat} onChange={setBodyFat} />
           </Field>
         </div>
@@ -85,7 +106,11 @@ export default function MeasurementsPage() {
                 id={`m-${site}`}
                 unit={lengthUnit(units)}
                 value={values[site] !== undefined ? round(cmToDisplay(values[site]!, units), 1) : undefined}
-                placeholder={body.latestMeasurements[site] !== undefined ? String(round(cmToDisplay(body.latestMeasurements[site]!, units), 1)) : undefined}
+                placeholder={
+                  body.latestMeasurements[site] !== undefined
+                    ? String(round(cmToDisplay(body.latestMeasurements[site]!, units), 1))
+                    : undefined
+                }
                 onChange={(v) =>
                   setValues((prev) => {
                     const next = { ...prev };
@@ -137,7 +162,13 @@ export default function MeasurementsPage() {
               <CardTitle>
                 {MEASURE_LABELS[site]} ({lengthUnit(units)})
               </CardTitle>
-              <LineChart label={`${MEASURE_LABELS[site]} circumference`} points={seriesBySite[site]} height={150} area={false} format={(v) => `${round(v, 1)}`} />
+              <LineChart
+                label={`${MEASURE_LABELS[site]} circumference`}
+                points={seriesBySite[site]}
+                height={150}
+                area={false}
+                format={(v) => `${round(v, 1)}`}
+              />
             </Card>
           ))}
         </div>

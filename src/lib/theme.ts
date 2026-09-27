@@ -30,6 +30,8 @@ export function useApplyTheme() {
     } catch {
       // Only used to avoid a flash of the wrong theme on the next load.
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolved === 'dark' ? '#0b0d12' : '#f4f5f8');
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', resolved === 'dark' ? '#0b0d12' : '#f4f5f8');
   }, [resolved]);
 }

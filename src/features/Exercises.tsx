@@ -29,7 +29,13 @@ function CustomExerciseForm({ onDone }: { onDone: () => void }) {
 
   const submit = () => {
     const cleaned = Object.fromEntries(Object.entries(muscles).filter(([, v]) => v && v > 0));
-    const candidate: CustomExercise = { id: `custom-${uid()}`, name: name.trim(), equipment, muscles: cleaned, bodyweightFactor: bodyweightFactor ?? 0 };
+    const candidate: CustomExercise = {
+      id: `custom-${uid()}`,
+      name: name.trim(),
+      equipment,
+      muscles: cleaned,
+      bodyweightFactor: bodyweightFactor ?? 0,
+    };
     const parsed = customExerciseSchema.safeParse(candidate);
     if (!parsed.success) {
       toast({ title: 'Check the form', body: parsed.error.issues[0]?.message, tone: 'warn' });
@@ -47,7 +53,13 @@ function CustomExerciseForm({ onDone }: { onDone: () => void }) {
   return (
     <div className="flex flex-col gap-4">
       <Field label="Name" htmlFor="cx-name">
-        <Input id="cx-name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="e.g. Belt Squat" />
+        <Input
+          id="cx-name"
+          value={name}
+          maxLength={60}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Belt Squat"
+        />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Equipment" htmlFor="cx-eq">
@@ -59,8 +71,19 @@ function CustomExerciseForm({ onDone }: { onDone: () => void }) {
             ))}
           </Select>
         </Field>
-        <Field label="Body weight moved" htmlFor="cx-bw" hint="0 for loaded lifts, 1.0 for pull-ups, 0.64 for push-ups.">
-          <NumberInput id="cx-bw" step={0.05} min={0} max={1.5} value={bodyweightFactor} onChange={setBodyweightFactor} />
+        <Field
+          label="Body weight moved"
+          htmlFor="cx-bw"
+          hint="0 for loaded lifts, 1.0 for pull-ups, 0.64 for push-ups."
+        >
+          <NumberInput
+            id="cx-bw"
+            step={0.05}
+            min={0}
+            max={1.5}
+            value={bodyweightFactor}
+            onChange={setBodyweightFactor}
+          />
         </Field>
       </div>
       <div>
@@ -103,7 +126,8 @@ export default function ExercisesPage() {
 
   const usage = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const w of data.workouts) for (const e of w.exercises) counts.set(e.exerciseId, (counts.get(e.exerciseId) ?? 0) + 1);
+    for (const w of data.workouts)
+      for (const e of w.exercises) counts.set(e.exerciseId, (counts.get(e.exerciseId) ?? 0) + 1);
     return counts;
   }, [data.workouts]);
 
@@ -124,7 +148,13 @@ export default function ExercisesPage() {
       />
       <div className="relative">
         <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="pl-9" aria-label="Search exercises" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search…"
+          className="pl-9"
+          aria-label="Search exercises"
+        />
       </div>
       <Card className="p-1 sm:p-2">
         <ul className="divide-y divide-border">
@@ -164,7 +194,8 @@ export default function ExercisesPage() {
         <CustomExerciseForm onDone={() => setOpen(false)} />
       </Modal>
       <p className={cx('text-center text-xs text-muted')}>
-        Contributions follow EMG and training-study consensus: primary movers count as 1 set, secondary 0.5, stabilisers 0.25.
+        Contributions follow EMG and training-study consensus: primary movers count as 1 set, secondary 0.5, stabilisers
+        0.25.
       </p>
     </div>
   );

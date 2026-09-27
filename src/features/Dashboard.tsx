@@ -119,7 +119,7 @@ export default function Dashboard() {
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-        <Card>
+        <Card className="lg:sticky lg:top-5 lg:self-start">
           <BodyPanel
             sim={sim}
             shape={{
@@ -187,7 +187,10 @@ function CoachNotes() {
   const growing = muscles.filter((m) => m.status === 'growing').length;
 
   if (sim.stats.workouts === 0) {
-    notes.push({ icon: <Sparkles size={16} className="text-accent" />, text: 'Log your first workout to start earning XP. Every hard set counts.' });
+    notes.push({
+      icon: <Sparkles size={16} className="text-accent" />,
+      text: 'Log your first workout to start earning XP. Every hard set counts.',
+    });
   }
   notes.push({
     icon: <TrendingUp size={16} className="text-good" />,
@@ -203,14 +206,23 @@ function CoachNotes() {
     (sim.muscles.chest.weeklySets + sim.muscles.frontDelts.weeklySets) /
     Math.max(1, sim.muscles.lats.weeklySets + sim.muscles.upperBack.weeklySets);
   if (sim.stats.workouts > 0 && pushPull > 1.5) {
-    notes.push({ icon: <TrendingDown size={16} className="text-warn" />, text: 'Pushing volume is well above pulling this week — add rows or pull-ups for balance.' });
+    notes.push({
+      icon: <TrendingDown size={16} className="text-warn" />,
+      text: 'Pushing volume is well above pulling this week — add rows or pull-ups for balance.',
+    });
   }
   if (sim.recovery.sleepHours === undefined && sim.recovery.proteinPerKg === undefined) {
-    notes.push({ icon: <Moon size={16} className="text-info" />, text: 'Log sleep and protein in your check-in to unlock up to +15% XP.' });
+    notes.push({
+      icon: <Moon size={16} className="text-info" />,
+      text: 'Log sleep and protein in your check-in to unlock up to +15% XP.',
+    });
   }
   const memory = muscles.reduce((s, m) => s + m.memoryXp, 0);
   if (memory > 50) {
-    notes.push({ icon: <Sparkles size={16} className="text-accent" />, text: `${formatNumber(memory)} XP banked as muscle memory — lost levels come back at double speed.` });
+    notes.push({
+      icon: <Sparkles size={16} className="text-accent" />,
+      text: `${formatNumber(memory)} XP banked as muscle memory — lost levels come back at double speed.`,
+    });
   }
   return (
     <ul className="flex flex-col gap-3 text-sm">

@@ -78,7 +78,15 @@ function SkinMesh({
   );
 }
 
-function Blob({ position, scale, color }: { position: [number, number, number]; scale: [number, number, number]; color: string }) {
+function Blob({
+  position,
+  scale,
+  color,
+}: {
+  position: [number, number, number];
+  scale: [number, number, number];
+  color: string;
+}) {
   return (
     <mesh geometry={UNIT_SPHERE} position={position} scale={scale} castShadow>
       <meshStandardMaterial color={color} roughness={0.6} metalness={0.02} />
@@ -90,7 +98,14 @@ type Lofts = Record<SegmentId, Loft>;
 type Owners = Record<SegmentId, Int16Array>;
 
 /** One side (+x) of the limbs; the other side is the same tree mirrored. */
-function Limbs({ shape, lofts, owners, skinColor, onHover, onSelect }: {
+function Limbs({
+  shape,
+  lofts,
+  owners,
+  skinColor,
+  onHover,
+  onSelect,
+}: {
   shape: ShapeFactors;
   lofts: Lofts;
   owners: Owners;
@@ -100,7 +115,9 @@ function Limbs({ shape, lofts, owners, skinColor, onHover, onSelect }: {
 }) {
   const [sx, sy, sz] = JOINTS.shoulder;
   const [hx, hy, hz] = JOINTS.hip;
-  const skin = (seg: SegmentId) => <SkinMesh loft={lofts[seg]} owner={owners[seg]} onHover={onHover} onSelect={onSelect} />;
+  const skin = (seg: SegmentId) => (
+    <SkinMesh loft={lofts[seg]} owner={owners[seg]} onHover={onHover} onSelect={onSelect} />
+  );
   return (
     <>
       <group position={[sx * shape.shoulderWidth * shape.girth, sy, sz]} rotation={[0, 0, JOINTS.armAngle]}>
@@ -164,7 +181,14 @@ export function BodyScene({ shape, muscles, skinColor, selected, hovered, onHove
       <Blob position={[0, 1.695, 0.01]} scale={[0.08, 0.11, 0.096]} color={skinColor} />
       <Limbs shape={shape} lofts={lofts} owners={owners} skinColor={skinColor} onHover={onHover} onSelect={onSelect} />
       <Mirror>
-        <Limbs shape={shape} lofts={lofts} owners={owners} skinColor={skinColor} onHover={onHover} onSelect={onSelect} />
+        <Limbs
+          shape={shape}
+          lofts={lofts}
+          owners={owners}
+          skinColor={skinColor}
+          onHover={onHover}
+          onSelect={onSelect}
+        />
       </Mirror>
     </group>
   );

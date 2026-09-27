@@ -5,7 +5,7 @@ import { formatNumber } from '../lib/units';
 
 function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
   const ref = useRef<T>(null);
-  const [width, setWidth] = useState(600);
+  const [width, setWidth] = useState(320);
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -105,12 +105,14 @@ export function LineChart({
   const last = geo.coords[geo.coords.length - 1];
   const hp = hover !== null ? points[hover] : null;
   const hc = hover !== null ? geo.coords[hover] : null;
-  const xTicks = [points[0].date, points[Math.floor((points.length - 1) / 2)].date, points[points.length - 1].date].filter(
-    (d, i, arr) => arr.indexOf(d) === i,
-  );
+  const xTicks = [
+    points[0].date,
+    points[Math.floor((points.length - 1) / 2)].date,
+    points[points.length - 1].date,
+  ].filter((d, i, arr) => arr.indexOf(d) === i);
 
   return (
-    <div ref={ref} className="relative w-full">
+    <div ref={ref} className="relative w-full min-w-0">
       <svg
         width={width}
         height={height}
@@ -143,7 +145,15 @@ export function LineChart({
           ))}
           {thresholds.map((t) => (
             <g key={t.label}>
-              <line x1={0} x2={w} y1={geo.sy(t.value)} y2={geo.sy(t.value)} stroke="var(--muted)" strokeOpacity={0.5} strokeWidth={1} />
+              <line
+                x1={0}
+                x2={w}
+                y1={geo.sy(t.value)}
+                y2={geo.sy(t.value)}
+                stroke="var(--muted)"
+                strokeOpacity={0.5}
+                strokeWidth={1}
+              />
               <text x={w + 6} y={geo.sy(t.value)} dy="0.32em" className="fill-muted text-[10px]">
                 {t.label}
               </text>
@@ -161,7 +171,14 @@ export function LineChart({
             </text>
           ))}
           {dots?.map((p) => (
-            <circle key={`d-${p.date}`} cx={geo.sx(p.date)} cy={geo.sy(p.value)} r={2.5} fill={color} fillOpacity={0.3} />
+            <circle
+              key={`d-${p.date}`}
+              cx={geo.sx(p.date)}
+              cy={geo.sy(p.value)}
+              r={2.5}
+              fill={color}
+              fillOpacity={0.3}
+            />
           ))}
           {area && <path d={geo.areaPath} fill={`url(#${gradId})`} />}
           <path d={geo.line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
@@ -268,7 +285,11 @@ export function VolumeBars({
             <span className="w-26 shrink-0 truncate text-right text-xs text-muted">{r.label}</span>
             <div className="relative h-4 flex-1">
               {refs.map((ref) => (
-                <span key={ref.label} className="absolute top-[-2px] bottom-[-2px] w-px bg-border" style={{ left: scale(ref.value) }} />
+                <span
+                  key={ref.label}
+                  className="absolute top-[-2px] bottom-[-2px] w-px bg-border"
+                  style={{ left: scale(ref.value) }}
+                />
               ))}
               <div
                 className="absolute inset-y-0 left-0 rounded-r-[4px] transition-[width,filter]"

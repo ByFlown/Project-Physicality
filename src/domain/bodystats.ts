@@ -27,9 +27,7 @@ export function bodyStats(data: AppData): BodyStats | null {
 
   const weightSeries = [
     { date: profile.startDate, kg: profile.startWeightKg },
-    ...data.checkIns
-      .filter((c) => c.weightKg !== undefined)
-      .map((c) => ({ date: c.date, kg: c.weightKg as number })),
+    ...data.checkIns.filter((c) => c.weightKg !== undefined).map((c) => ({ date: c.date, kg: c.weightKg as number })),
   ].sort((a, b) => compareDates(a.date, b.date));
   // A check-in on the start date overrides the onboarding weight.
   const dedup = weightSeries.filter((p, i) => i === weightSeries.length - 1 || weightSeries[i + 1].date !== p.date);

@@ -111,7 +111,14 @@ export default function Onboarding() {
         <div className="animate-pop-in w-full max-w-lg text-center">
           <svg viewBox="0 0 32 32" className="mx-auto mb-6 h-14 w-14" aria-hidden>
             <rect width="32" height="32" rx="9" fill="var(--accent)" />
-            <path d="M9 23V9h7.5a4.5 4.5 0 0 1 0 9H9" fill="none" stroke="var(--accent-fg)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M9 23V9h7.5a4.5 4.5 0 0 1 0 9H9"
+              fill="none"
+              stroke="var(--accent-fg)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Project Physicality</h1>
           <p className="mx-auto mt-3 max-w-md text-muted">
@@ -184,7 +191,13 @@ export default function Onboarding() {
             </Field>
             <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Birth year" htmlFor="ob-year">
-                <NumberInput id="ob-year" value={draft.birthYear} onChange={(v) => patch({ birthYear: v })} step={1} placeholder="1995" />
+                <NumberInput
+                  id="ob-year"
+                  value={draft.birthYear}
+                  onChange={(v) => patch({ birthYear: v })}
+                  step={1}
+                  placeholder="1995"
+                />
               </Field>
               <Field label="Height" htmlFor="ob-height">
                 <NumberInput
@@ -245,13 +258,15 @@ export default function Onboarding() {
             <div>
               <h2 className="text-xl font-bold">Strong points & weak spots</h2>
               <p className="text-sm text-muted">
-                Optional. Mark muscles that are noticeably behind or ahead of the rest. Each shifts that muscle's starting
-                level by about 20%.
+                Optional. Mark muscles that are noticeably behind or ahead of the rest. Each shifts that muscle's
+                starting level by about 20%.
               </p>
             </div>
             {(['chest', 'shoulders', 'arms', 'back', 'core', 'legs'] as MuscleRegion[]).map((region) => (
               <div key={region}>
-                <div className="mb-1 text-[11px] font-semibold tracking-widest text-muted uppercase">{REGION_LABELS[region]}</div>
+                <div className="mb-1 text-[11px] font-semibold tracking-widest text-muted uppercase">
+                  {REGION_LABELS[region]}
+                </div>
                 <div className="flex flex-col divide-y divide-border">
                   {MUSCLE_IDS.filter((id) => MUSCLES[id].region === region).map((id) => (
                     <div key={id} className="flex items-center justify-between gap-3 py-2">
@@ -260,7 +275,9 @@ export default function Onboarding() {
                         ariaLabel={`${MUSCLES[id].name} rating`}
                         size="sm"
                         value={String(draft.selfRatings[id] ?? 0)}
-                        onChange={(v) => patch({ selfRatings: { ...draft.selfRatings, [id]: Number(v) as SelfRating } })}
+                        onChange={(v) =>
+                          patch({ selfRatings: { ...draft.selfRatings, [id]: Number(v) as SelfRating } })
+                        }
                         options={[
                           { value: '-1', label: 'Lagging' },
                           { value: '0', label: 'Average' },
@@ -360,7 +377,9 @@ function BodyStep({
       <NumberInput
         id={`ob-${site}`}
         unit={lengthUnit(units)}
-        value={draft.measurements[site] !== undefined ? round(cmToDisplay(draft.measurements[site]!, units), 1) : undefined}
+        value={
+          draft.measurements[site] !== undefined ? round(cmToDisplay(draft.measurements[site]!, units), 1) : undefined
+        }
         onChange={(v) => setSite(site, v)}
       />
     </Field>
@@ -383,7 +402,9 @@ function BodyStep({
         {navy !== undefined && (
           <p className="mt-2 text-sm">
             Estimated body fat: <span className="num font-semibold">{navy}%</span>
-            {draft.bodyFatPct !== undefined && <span className="text-muted"> (your reported value takes priority)</span>}
+            {draft.bodyFatPct !== undefined && (
+              <span className="text-muted"> (your reported value takes priority)</span>
+            )}
           </p>
         )}
       </div>

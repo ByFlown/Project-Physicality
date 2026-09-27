@@ -5,6 +5,7 @@ import { Card, CardTitle, PageHeader, Segmented, Stat } from '../components/ui';
 import { addDays, compareDates, type LocalDate } from '../domain/dates';
 import { movingAverage } from '../lib/series';
 import { ENGINE } from '../domain/engine';
+import { WEEKLY_MAX_PRODUCTIVE_SETS } from '../domain/stimulus';
 import { fractionalLevel, levelFromXp } from '../domain/leveling';
 import { MUSCLE_IDS, MUSCLES } from '../domain/muscles';
 import { levelColor } from '../lib/colors';
@@ -38,7 +39,10 @@ export default function ProgressPage() {
   if (!sim || !body) return null;
 
   const levelPts = inRange(levelSeries);
-  const startIdx = Math.max(0, sim.timeline.dates.length - (range === 'all' ? sim.timeline.dates.length : Number(range)) - 1);
+  const startIdx = Math.max(
+    0,
+    sim.timeline.dates.length - (range === 'all' ? sim.timeline.dates.length : Number(range)) - 1,
+  );
   const levelDelta = levelPts.length ? levelPts[levelPts.length - 1].value - levelPts[0].value : 0;
   const weightPts = inRange(weight.avg);
   const weightDelta = weightPts.length > 1 ? weightPts[weightPts.length - 1].value - weightPts[0].value : 0;
@@ -70,7 +74,11 @@ export default function ProgressPage() {
       </div>
 
       <Card className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Level change" value={`${levelDelta >= 0 ? '+' : ''}${round(levelDelta, 2)}`} sub={`now L${sim.overall.level}`} />
+        <Stat
+          label="Level change"
+          value={`${levelDelta >= 0 ? '+' : ''}${round(levelDelta, 2)}`}
+          sub={`now L${sim.overall.level}`}
+        />
         <Stat label="Workouts (all time)" value={sim.stats.workouts} sub={`${formatNumber(sim.stats.hardSets)} sets`} />
         <Stat
           label="Weight change (7-day avg)"
@@ -86,7 +94,11 @@ export default function ProgressPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <CardTitle>Physique level</CardTitle>
-          <LineChart label="Overall physique level over time" points={levelPts} format={(v) => round(v, 1).toString()} />
+          <LineChart
+            label="Overall physique level over time"
+            points={levelPts}
+            format={(v) => round(v, 1).toString()}
+          />
         </Card>
         <Card>
           <CardTitle>Body weight · 7-day average</CardTitle>
@@ -106,12 +118,16 @@ export default function ProgressPage() {
           <VolumeBars
             max={24}
             refs={[
-              { value: ENGINE.maintenanceSets, label: 'maintain' },
-              { value: ENGINE.growthSets, label: 'grow' },
-              { value: 20, label: 'max useful' },
+              { value: ENGINE.maintenanceSets, label: String(ENGINE.maintenanceSets) },
+              { value: ENGINE.growthSets, label: String(ENGINE.growthSets) },
+              { value: WEEKLY_MAX_PRODUCTIVE_SETS, label: String(WEEKLY_MAX_PRODUCTIVE_SETS) },
             ]}
             rows={MUSCLE_IDS.map((id) => ({ key: id, label: MUSCLES[id].name, value: sim.muscles[id].weeklySets }))}
           />
+          <p className="mt-3 text-xs text-muted">
+            Reference lines: {ENGINE.maintenanceSets} sets maintain, {ENGINE.growthSets} sets grow,{' '}
+            {WEEKLY_MAX_PRODUCTIVE_SETS}+ sets add little.
+          </p>
         </Card>
         <Card>
           <CardTitle>Level changes in range</CardTitle>
@@ -120,9 +136,15 @@ export default function ProgressPage() {
               const delta = r.now - r.then;
               return (
                 <li key={r.id}>
-                  <Link to={`/muscles/${r.id}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2">
+                  <Link
+                    to={`/muscles/${r.id}`}
+                    className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2"
+                  >
                     <span className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: levelColor(fractionalLevel(r.xp)) }} />
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ background: levelColor(fractionalLevel(r.xp)) }}
+                      />
                       {MUSCLES[r.id].name}
                     </span>
                     <span className="num text-xs">

@@ -4,13 +4,7 @@ import { buildExerciseIndex, type Exercise } from './exercises';
 import { levelFromXp, tierForLevel, xpToNext, type LevelInfo, type Tier } from './leveling';
 import { MUSCLE_IDS, MUSCLES, TOTAL_MUSCLE_WEIGHT, type MuscleId } from './muscles';
 import type { AppData, CheckIn, Workout } from './schema';
-import {
-  effectiveLoad,
-  effectiveSetsByMuscle,
-  estimated1RM,
-  sessionValue,
-  weeklyScale,
-} from './stimulus';
+import { effectiveLoad, effectiveSetsByMuscle, estimated1RM, sessionValue, weeklyScale } from './stimulus';
 
 /**
  * Deterministic progression engine. The whole state is derived by replaying
@@ -187,10 +181,16 @@ export function simulate(data: AppData, endDate: LocalDate): Simulation | null {
   const lastTrained: Partial<Record<MuscleId, number>> = {};
   const totalSets = Object.fromEntries(MUSCLE_IDS.map((id) => [id, 0])) as Record<MuscleId, number>;
   /** Ring buffer of the last 7 days of effective sets per muscle. */
-  const window = Object.fromEntries(MUSCLE_IDS.map((id) => [id, new Array<number>(7).fill(0)])) as Record<MuscleId, number[]>;
+  const window = Object.fromEntries(MUSCLE_IDS.map((id) => [id, new Array<number>(7).fill(0)])) as Record<
+    MuscleId,
+    number[]
+  >;
   const weekSum = (id: MuscleId) => window[id].reduce((a, b) => a + b, 0);
 
-  const levels = Object.fromEntries(MUSCLE_IDS.map((id) => [id, levelFromXp(xp[id]).level])) as Record<MuscleId, number>;
+  const levels = Object.fromEntries(MUSCLE_IDS.map((id) => [id, levelFromXp(xp[id]).level])) as Record<
+    MuscleId,
+    number
+  >;
   let overallLevel = levelFromXp(overallXpOf(xp)).level;
 
   const records: Record<string, PersonalRecord> = {};

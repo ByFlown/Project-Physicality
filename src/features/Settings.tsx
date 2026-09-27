@@ -41,7 +41,12 @@ function ProfileForm({ profile, units }: { profile: Profile; units: 'metric' | '
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Name" htmlFor="p-name">
-          <Input id="p-name" value={draft.name} maxLength={40} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+          <Input
+            id="p-name"
+            value={draft.name}
+            maxLength={40}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          />
         </Field>
         <Field label="Sex">
           <Segmented
@@ -55,7 +60,12 @@ function ProfileForm({ profile, units }: { profile: Profile; units: 'metric' | '
           />
         </Field>
         <Field label="Birth year" htmlFor="p-year">
-          <NumberInput id="p-year" step={1} value={draft.birthYear} onChange={(v) => v && setDraft({ ...draft, birthYear: Math.round(v) })} />
+          <NumberInput
+            id="p-year"
+            step={1}
+            value={draft.birthYear}
+            onChange={(v) => v && setDraft({ ...draft, birthYear: Math.round(v) })}
+          />
         </Field>
         <Field label="Height" htmlFor="p-height">
           <NumberInput
@@ -65,7 +75,11 @@ function ProfileForm({ profile, units }: { profile: Profile; units: 'metric' | '
             onChange={(v) => v && setDraft({ ...draft, heightCm: displayToCm(v, units) })}
           />
         </Field>
-        <Field label="Starting weight" htmlFor="p-weight" hint="Your weight when you started. Log current weight via check-ins.">
+        <Field
+          label="Starting weight"
+          htmlFor="p-weight"
+          hint="Your weight when you started. Log current weight via check-ins."
+        >
           <NumberInput
             id="p-weight"
             unit={weightUnit(units)}
@@ -74,7 +88,11 @@ function ProfileForm({ profile, units }: { profile: Profile; units: 'metric' | '
           />
         </Field>
         <Field label="Experience at start" htmlFor="p-exp">
-          <Select id="p-exp" value={draft.experience} onChange={(e) => setDraft({ ...draft, experience: e.target.value as Experience })}>
+          <Select
+            id="p-exp"
+            value={draft.experience}
+            onChange={(e) => setDraft({ ...draft, experience: e.target.value as Experience })}
+          >
             {(Object.keys(EXPERIENCE_LABELS) as Experience[]).map((e) => (
               <option key={e} value={e}>
                 {EXPERIENCE_LABELS[e].label} — {EXPERIENCE_LABELS[e].hint}
@@ -82,8 +100,18 @@ function ProfileForm({ profile, units }: { profile: Profile; units: 'metric' | '
             ))}
           </Select>
         </Field>
-        <Field label="Start date" htmlFor="p-start" hint="Everything before this date is ignored unless workouts exist earlier.">
-          <Input id="p-start" type="date" max={today()} value={draft.startDate} onChange={(e) => e.target.value && setDraft({ ...draft, startDate: e.target.value })} />
+        <Field
+          label="Start date"
+          htmlFor="p-start"
+          hint="Everything before this date is ignored unless workouts exist earlier."
+        >
+          <Input
+            id="p-start"
+            type="date"
+            max={today()}
+            value={draft.startDate}
+            onChange={(e) => e.target.value && setDraft({ ...draft, startDate: e.target.value })}
+          />
         </Field>
       </div>
       <div className="flex justify-end gap-2">
@@ -110,7 +138,10 @@ export default function SettingsPage() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
 
   useEffect(() => {
-    navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null));
+    navigator.storage
+      ?.persisted?.()
+      .then(setPersisted)
+      .catch(() => setPersisted(null));
   }, []);
 
   const exportData = () => {
@@ -125,13 +156,19 @@ export default function SettingsPage() {
       return;
     }
     const d = result.data;
-    if (!window.confirm(`Replace all current data with this backup (${d.workouts.length} workouts, ${d.checkIns.length} check-ins)?`)) return;
+    if (
+      !window.confirm(
+        `Replace all current data with this backup (${d.workouts.length} workouts, ${d.checkIns.length} check-ins)?`,
+      )
+    )
+      return;
     replaceData(d);
     toast({ title: 'Backup restored', tone: 'success' });
   };
 
   const reset = async () => {
-    if (!window.confirm('Delete ALL data on this device? This cannot be undone. Export a backup first if unsure.')) return;
+    if (!window.confirm('Delete ALL data on this device? This cannot be undone. Export a backup first if unsure.'))
+      return;
     await resetAll();
     navigate('/welcome', { replace: true });
   };

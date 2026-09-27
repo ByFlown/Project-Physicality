@@ -1,6 +1,6 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test';
 
-const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined
+const executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined;
 
 export default defineConfig({
   testDir: './e2e',
@@ -26,4 +26,4 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
-})
+});
