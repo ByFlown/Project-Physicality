@@ -1,5 +1,5 @@
 import type { MeasureSite, Sex } from '../../domain/schema';
-import { girthAt, girthOf, slice, type Girth } from './measure';
+import { girthAt, girthOf, loopAroundOrigin, slice, type Girth } from './measure';
 import type { HumanModel, Vec3 } from './model';
 
 /**
@@ -104,8 +104,17 @@ export function measureSites(ctx: MeasureContext): Partial<Record<MeasureSite, S
   const at = (f: number) => shoulderY - f * torsoLen;
   const out: Partial<Record<MeasureSite, SiteMeasurement>> = {};
 
-  // Just below the larynx, perpendicular to the neck. No part filter: skin weights blend across the neck.
-  const neck = limbGirth(ctx, j.neck, j.head, 0.4, null);
+  // Tape around the narrowest part of the neck, perpendicular to it. Only loops enclosing the neck axis
+  // count, which keeps out the trapezius slope below and the jaw above.
+  const neck = best(
+    range(0.15, 0.65, 11).map((t) => {
+      const origin = lerp3(j.neck, j.head, t);
+      const normal = sub(j.head, j.neck);
+      const loop = loopAroundOrigin(slice(ctx.positions, ctx.tris, { origin, normal }));
+      return loop ? { ...girthOf(loop.points), origin, normal } : null;
+    }),
+    (a, b) => a.circumference < b.circumference,
+  );
   if (neck) out.neck = neck;
   const chest = torsoGirthAt(ctx, at(0.3));
   if (chest) out.chest = chest;

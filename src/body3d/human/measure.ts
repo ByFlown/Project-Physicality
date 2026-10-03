@@ -175,6 +175,12 @@ export function perimeter(poly: [number, number][]): number {
   return s;
 }
 
+/** The loop whose hull contains the plane origin, or null. */
+export function loopAroundOrigin(s: Slice): SliceLoop | null {
+  for (const loop of s.loops) if (contains(convexHull(loop.points), [0, 0])) return loop;
+  return null;
+}
+
 /** The loop whose hull contains the plane origin, else the one nearest to it. */
 export function loopAtOrigin(s: Slice): SliceLoop | null {
   let best: SliceLoop | null = null;

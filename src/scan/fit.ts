@@ -18,6 +18,11 @@ import type { ChordId, Pt } from './types';
 export type Observation =
   /** Torso width (front) / depth (side) on a horizontal slice at height y (cm). */
   | { kind: 'torsoWidth' | 'torsoDepth'; y: number; value: number; sigma: number }
+  /**
+   * Side-view torso centre at height y relative to the centre at `yRef`: the
+   * profile's shape (belly, chest, back), independent of where the axis is.
+   */
+  | { kind: 'torsoCenter'; y: number; yRef: number; value: number; sigma: number }
   /** Neck width / depth on a horizontal slice. */
   | { kind: 'neckWidth' | 'neckDepth'; y: number; value: number; sigma: number }
   /** Bideltoid breadth including the arms, horizontal slice. */
@@ -72,11 +77,19 @@ export function scanObservations(input: BuildScanInput, scan: Scan): Observation
   const rows = scan.torso;
   const lo = rows[0].y;
   const hi = rows[rows.length - 1].y;
-  for (const r of rows) {
+  const inner = rows.filter((r) => {
     const f = (r.y - lo) / Math.max(1, hi - lo);
-    if (f < 0.15 || f > 0.92) continue;
+    return f >= 0.15 && f <= 0.92;
+  });
+  // Reference row for the side-profile shape: the one nearest the hips' height.
+  const ref = inner.reduce((a, b) => (Math.abs(b.y - scan.joints.hipY) < Math.abs(a.y - scan.joints.hipY) ? b : a));
+  for (const r of inner) {
     obs.push({ kind: 'torsoWidth', y: r.y, value: 2 * r.half, sigma: 1.2 });
     obs.push({ kind: 'torsoDepth', y: r.y, value: r.front + r.back, sigma: 1.4 });
+    if (r !== ref) {
+      const centre = (x: typeof r) => (x.front - x.back) / 2;
+      obs.push({ kind: 'torsoCenter', y: r.y, yRef: ref.y, value: centre(r) - centre(ref), sigma: 1.5 });
+    }
   }
 
   const fChord = (id: ChordId) => front.markup.chords[id];
@@ -238,7 +251,7 @@ function evaluate(ctx: FitContext, coeffs: Float64Array, obs: Observation[]): Ev
   };
 
   /** Extent of the given loops along `dir` (max − min), with gradient. */
-  const extent = (loops: SliceLoop[], u: Vec3, uIndex: 0 | 1, normal: Vec3) => {
+  const extent = (loops: SliceLoop[], u: Vec3, uIndex: 0 | 1, normal: Vec3, mode: 'size' | 'center' = 'size') => {
     let lo = Infinity;
     let hi = -Infinity;
     let eLo: SliceEdge | null = null;
@@ -256,11 +269,15 @@ function evaluate(ctx: FitContext, coeffs: Float64Array, obs: Observation[]): Ev
       });
     }
     const g = new Float64Array(K);
-    if (eLo && eHi) {
-      edgeGrad(eHi, u, normal, g, 100);
-      edgeGrad(eLo, u, normal, g, -100);
+    if (!eLo || !eHi) return { value: 0, grad: g };
+    if (mode === 'center') {
+      edgeGrad(eHi, u, normal, g, 50);
+      edgeGrad(eLo, u, normal, g, 50);
+      return { value: ((hi + lo) / 2) * 100, grad: g };
     }
-    return { value: Number.isFinite(hi - lo) ? (hi - lo) * 100 : 0, grad: g };
+    edgeGrad(eHi, u, normal, g, 100);
+    edgeGrad(eLo, u, normal, g, -100);
+    return { value: (hi - lo) * 100, grad: g };
   };
 
   const UP: Vec3 = [0, 1, 0];
@@ -291,6 +308,12 @@ function evaluate(ctx: FitContext, coeffs: Float64Array, obs: Observation[]): Ev
       case 'torsoDepth':
         r = extent(horizontal(o.y, notArm, 'torso'), Z, 1, UP);
         break;
+      case 'torsoCenter': {
+        const a = extent(horizontal(o.y, notArm, 'torso'), Z, 1, UP, 'center');
+        const b = extent(horizontal(o.yRef, notArm, 'torso'), Z, 1, UP, 'center');
+        r = { value: a.value - b.value, grad: a.grad.map((x, k) => x - b.grad[k]) };
+        break;
+      }
       case 'neckWidth':
         r = extent(horizontal(o.y, isHead, 'head'), X, 0, UP);
         break;
@@ -419,9 +442,12 @@ export function fitBody(model: HumanModel, obs: Observation[], opts: FitOptions)
   const c = new Float64Array(K);
   if (opts.start) for (let k = 0; k < K; k++) c[k] = opts.start[k] ?? 0;
 
+  // Huber loss: residuals beyond HUBER sigmas (a hand over the waist, a clothing fold) count linearly.
+  const HUBER = 2.5;
+  const rho = (z: number) => (Math.abs(z) <= HUBER ? z * z : 2 * HUBER * Math.abs(z) - HUBER * HUBER);
   const cost = (e: Evaluation, coeffs: Float64Array) => {
     let s = 0;
-    obs.forEach((o, i) => (s += ((e.values[i] - o.value) / o.sigma) ** 2));
+    obs.forEach((o, i) => (s += rho((e.values[i] - o.value) / o.sigma)));
     for (let k = 0; k < K; k++) s += prior * (coeffs[k] / model.sigmas[k]) ** 2;
     return s;
   };
@@ -435,8 +461,9 @@ export function fitBody(model: HumanModel, obs: Observation[], opts: FitOptions)
     const A = new Float64Array(K * K);
     const g = new Float64Array(K);
     obs.forEach((o, i) => {
-      const w = 1 / (o.sigma * o.sigma);
       const r = ev.values[i] - o.value;
+      const z = Math.abs(r / o.sigma);
+      const w = (z <= HUBER ? 1 : HUBER / z) / (o.sigma * o.sigma);
       const J = ev.grads[i];
       for (let a = 0; a < K; a++) {
         if (!J[a]) continue;

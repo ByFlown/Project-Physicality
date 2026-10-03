@@ -115,6 +115,8 @@ export interface Scenario {
   name: string;
   camera: (rand: () => number, statureM: number) => { front: CameraSetup; side: CameraSetup };
   landmarkNoisePx: number;
+  /** Std-dev of off-model bumps (m); defaults to 8 mm. */
+  offModelM?: number;
   /** Simulate a 256×256 segmentation model and a ±px edge bias. */
   degrade: boolean;
   edgeBiasPx: number;
@@ -161,6 +163,14 @@ export const SCENARIOS: Record<string, Scenario> = {
     name: 'level phone: upright (±1° tilt), 0.8–1.15 m high, 2–3.2 m away',
     camera: (r, s) => ({ front: levelCamera(r, s), side: levelCamera(r, s) }),
     landmarkNoisePx: 0,
+    degrade: false,
+    edgeBiasPx: 0,
+  },
+  offModel: {
+    name: 'off-model: ideal photos of bodies with 2 cm bumps the model cannot represent',
+    camera: (_r, s) => ({ front: idealCamera(s), side: idealCamera(s) }),
+    landmarkNoisePx: 0,
+    offModelM: 0.02,
     degrade: false,
     edgeBiasPx: 0,
   },
@@ -243,7 +253,7 @@ export function runBenchmark(opts: {
     const rand = mulberry32((opts.seed ?? 1) * 7919 + (model.sex === 'male' ? 0 : 104729));
     const parts = vertexParts(model);
     for (let i = 0; i < opts.subjectsPerModel; i++) {
-      const subject = randomSubject(model, rand);
+      const subject = randomSubject(model, rand, opts.scenario.offModelM);
       const cams = opts.scenario.camera(rand, subject.statureM);
       const photos = photograph(model, subject.rest, subject.joints, parts, {
         front: cams.front,
