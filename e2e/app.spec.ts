@@ -16,7 +16,10 @@ async function completeScan(page: Page) {
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByText('Check the side measurements')).toBeVisible();
   await page.getByRole('button', { name: 'Review results' }).click();
-  await expect(page.getByText('Your scan', { exact: true })).toBeVisible();
+  await expect(page.getByText('Your scan', { exact: true })).toBeVisible({ timeout: 30_000 });
+  // The 3D body was fitted in a worker (either measured on it, or kept for display with a warning).
+  await expect(page.getByText(/3D body fitting was unavailable/)).toBeHidden();
+  await expect(page.getByText(/fitted to your photos|could not match your photos/).first()).toBeVisible();
   await page.getByLabel('I placed the lines on my photos myself and they match my body').check();
   await page.getByRole('button', { name: 'Use this scan' }).click();
   await expect(page.getByText('Body scan complete')).toBeVisible();
@@ -52,7 +55,7 @@ test('onboarding requires a scan, then shows the calibrated dashboard', async ({
   await onboard(page);
   await expect(page.getByText(/XP to level/)).toBeVisible();
   await expect(page.getByRole('link', { name: /Calves/ }).first()).toBeVisible();
-  await expect(page.getByText(/calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/fitted to your scan/)).toBeVisible({ timeout: 15_000 });
   await page.goto('/scan');
   await expect(page.getByText('Placed by hand')).toBeVisible();
   await page.goto('/measurements');
@@ -62,7 +65,7 @@ test('onboarding requires a scan, then shows the calibrated dashboard', async ({
 test('model detail can be switched in settings', async ({ page }) => {
   await page.goto('/welcome');
   await page.getByRole('button', { name: 'Explore with demo data' }).click();
-  await expect(page.getByText(/calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/fitted to your scan|calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
   await page.goto('/settings');
   await page.getByRole('radiogroup', { name: '3D model detail' }).getByRole('radio', { name: 'Standard' }).click();
   await page.goto('/');

@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  Body lab: dev harness for the realistic body model. `npm run dev`, then open
+  http://localhost:5173/tools/body-lab/?sex=male&view=front
+  Query params: sex, view (front|side|back|three-quarter), weight, muscle (0..1).
+-->
+<html>
+  <head>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1b1e24;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

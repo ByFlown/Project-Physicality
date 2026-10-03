@@ -96,8 +96,8 @@ export default function HowItWorks() {
         </p>
         <p>
           On the 3D model, each muscle's bulge grows with its level on a saturating curve — big visible changes early,
-          smaller ones later, as with real hypertrophy. Height scales the model; weight and body fat set its girth and
-          how visible your abs are.
+          smaller ones later, as with real hypertrophy. The realistic body starts from your shape (your scan, or a body
+          predicted from your height, weight and body fat) and shows how your muscles and body fat changed since.
         </p>
       </Section>
 
@@ -106,14 +106,23 @@ export default function HowItWorks() {
           A scan takes a <strong>front and a side photo</strong>. On your device, a pose model finds your joints and a
           segmentation model outlines your body; measurement lines are placed across neck, shoulders, chest, waist,
           hips, arm, forearm, thigh and calf, and you can drag every line to correct it. Your height sets the scale.
-          Widths (front) and depths (side) become circumferences and a Navy body-fat estimate.
+          Then a <strong>3D body model is fitted</strong> to everything the photos show — your outline row by row from
+          the front and the side, the lines you checked, and your joint positions — and circumferences are measured on
+          that fitted body the way a tape would. Two photos can only show widths and depths, so the model fills in the
+          shape of each cross-section from thousands of realistic bodies. The Navy body-fat estimate uses those
+          circumferences.
         </p>
         <p>
-          In <strong>Precise</strong> mode the 3D body is rebuilt from your scanned proportions and{' '}
-          <strong>calibrated</strong>: the muscle bulges you had on the scan date are subtracted from the silhouette, so
-          the model matches your photos exactly on that day and then grows or shrinks with your levels. Precise mode
-          also adds extra muscle heads and a denser mesh. The onboarding scan also nudges the starting level of the
-          muscles a circumference covers — halfway between your experience-based level and what the girth suggests.
+          In <strong>Realistic</strong> mode you see that fitted body. Muscles are drawn as changes since the scan date,
+          so the model matches your photos on that day and then grows or shrinks with your levels. The onboarding scan
+          also nudges the starting level of the muscles a circumference covers — halfway between your experience-based
+          level and what the girth suggests.
+        </p>
+        <p>
+          How accurate? On synthetic test bodies with known measurements, the fitted body is within about 1.5 cm on
+          average with ideal photos and about 3 cm with typical phone photos. Real people add error the test cannot
+          capture: loose clothing, hair, posture and breathing. Keep the phone upright at hip height, wear fitted
+          clothes, and add a tape measurement now and then.
         </p>
         <p>Photos never leave your device and are not kept unless you tick the box; backups never include them.</p>
       </Section>

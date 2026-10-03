@@ -16,11 +16,15 @@ import { MEASURE_LABELS, type MeasureSite, type Scan, type Sex } from '../../dom
 import { cx } from '../../lib/cx';
 import { uid } from '../../lib/id';
 import { formatLength, round, type UnitSystem } from '../../lib/units';
-import { buildScan } from '../../scan/buildScan';
+import { buildScan, type BuildScanInput } from '../../scan/buildScan';
+import { refineScan } from '../../scan/fitClient';
+import { FIT_WARNING } from '../../scan/refine';
 import { detectPerson } from '../../scan/detector';
 import { analyzeFront, analyzeSide, sideLevelsFromFront } from '../../scan/geometry';
 import { loadPhoto, releasePhoto, type LoadedPhoto } from '../../scan/photo';
 import type { ViewAnalysis } from '../../scan/types';
+import { requestOrientationAccess, TILT_WARNING, tiltWarning } from '../../scan/level';
+import { CameraCapture } from './CameraCapture';
 import { ScanEditor } from './ScanEditor';
 
 export interface ScanResult {
@@ -33,7 +37,10 @@ type Step = 'intro' | 'photos' | 'analyzing' | 'front' | 'side' | 'result';
 const TIPS: { icon: ReactNode; text: string }[] = [
   { icon: <Check size={16} />, text: 'Fitted clothing or underwear — loose clothes inflate every measurement.' },
   { icon: <Check size={16} />, text: 'Plain background, good light, whole body in frame from head to feet.' },
-  { icon: <Check size={16} />, text: 'Phone upright at hip height, 2–3 m away (a timer or a helper works best).' },
+  {
+    icon: <Check size={16} />,
+    text: 'Phone upright (not tilted) at hip height, 2–3 m away. The in-app camera shows a level and has a 10 s timer.',
+  },
   {
     icon: <Check size={16} />,
     text: 'Front photo: face the camera, arms 30–45° away from your body, feet hip-width apart.',
@@ -116,6 +123,9 @@ export function ScanWizard({
   const [frontA, setFrontA] = useState<ViewAnalysis | null>(null);
   const [sideA, setSideA] = useState<ViewAnalysis | null>(null);
   const [keepPhotos, setKeepPhotos] = useState(false);
+  const [camera, setCamera] = useState<'front' | 'side' | null>(null);
+  const [tilts, setTilts] = useState<{ front: number | null; side: number | null }>({ front: null, side: null });
+  const canUseCamera = typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function';
   const [manualOk, setManualOk] = useState(false);
 
   // Release object URLs when photos are replaced or the wizard unmounts.
@@ -143,6 +153,13 @@ export function ScanWizard({
     if (f.error) setDetectError(f.error);
     const fa = analyzeFront(f.mask, f.landmarks, front.width, front.height, sex);
     const sa = analyzeSide(s.mask, s.landmarks, side.width, side.height, sideLevelsFromFront(fa));
+    // Photos taken with the in-app camera know how tilted the phone was.
+    for (const [a, t] of [
+      [fa, tilts.front],
+      [sa, tilts.side],
+    ] as const) {
+      if (t !== null && Math.abs(t) > TILT_WARNING) a.warnings.push(tiltWarning(t));
+    }
     setFrontA(fa);
     setSideA(sa);
     setStep('front');
@@ -150,17 +167,31 @@ export function ScanWizard({
 
   const [scanId] = useState(uid);
   const built = useMemo(() => {
-    if (!frontA || !sideA || step !== 'result') return { scan: null, error: null };
+    if (!frontA || !sideA || step !== 'result') return { scan: null, input: null, error: null };
+    const input: BuildScanInput = { id: scanId, date, heightCm, sex, front: frontA, side: sideA, photosKept: false };
     try {
-      return {
-        scan: buildScan({ id: scanId, date, heightCm, sex, front: frontA, side: sideA, photosKept: keepPhotos }),
-        error: null,
-      };
+      return { scan: buildScan(input), input, error: null };
     } catch (e) {
-      return { scan: null, error: e instanceof Error ? e.message : String(e) };
+      return { scan: null, input: null, error: e instanceof Error ? e.message : String(e) };
     }
-  }, [frontA, sideA, step, scanId, date, heightCm, sex, keepPhotos]);
-  const scan = built.scan;
+  }, [frontA, sideA, step, scanId, date, heightCm, sex]);
+
+  // Fit the 3D body to the measurements (in a worker); keep the chord scan if that fails.
+  const [fitted, setFitted] = useState<{ from: Scan; scan: Scan | null; error?: string } | null>(null);
+  useEffect(() => {
+    const { scan: chordScan, input } = built;
+    if (!chordScan || !input) return;
+    let live = true;
+    refineScan(chordScan, input).then(
+      (scan) => live && setFitted({ from: chordScan, scan }),
+      (err: unknown) => live && setFitted({ from: chordScan, scan: null, error: String(err) }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [built]);
+  const fitDone = !!built.scan && fitted?.from === built.scan;
+  const scan = fitDone ? (fitted.scan ?? built.scan) : null;
   const manual = !!scan && scan.method === 'manual';
 
   const header = (title: string, sub?: string) => (
@@ -232,10 +263,47 @@ export function ScanWizard({
             label="Front"
             hint="Facing the camera, arms away from the body"
             photo={front}
-            onFile={(f) => take(f, setFront)}
+            onFile={(f) => {
+              setTilts((t) => ({ ...t, front: null }));
+              void take(f, setFront);
+            }}
           />
-          <PhotoSlot label="Side" hint="Turned 90°, arms relaxed" photo={side} onFile={(f) => take(f, setSide)} />
+          <PhotoSlot
+            label="Side"
+            hint="Turned 90°, arms relaxed"
+            photo={side}
+            onFile={(f) => {
+              setTilts((t) => ({ ...t, side: null }));
+              void take(f, setSide);
+            }}
+          />
+          {canUseCamera &&
+            (['front', 'side'] as const).map((v) => (
+              <Button
+                key={v}
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  requestOrientationAccess();
+                  setCamera(v);
+                }}
+              >
+                <Camera size={14} /> Use camera
+              </Button>
+            ))}
         </div>
+        {camera && (
+          <CameraCapture
+            label={camera === 'front' ? 'Front' : 'Side'}
+            onClose={() => setCamera(null)}
+            onCapture={(file, tilt) => {
+              const view = camera;
+              setCamera(null);
+              setTilts((t) => ({ ...t, [view]: tilt ? tilt.pitch : null }));
+              void take(file, view === 'front' ? setFront : setSide);
+            }}
+          />
+        )}
         {error && <p className="mt-3 text-sm text-bad">{error}</p>}
         {nav(
           () => setStep('intro'),
@@ -320,12 +388,28 @@ export function ScanWizard({
     );
   }
 
+  if (step === 'result' && built.scan && !fitDone) {
+    return (
+      <div className="py-10 text-center" aria-live="polite">
+        <ScanLine size={36} className="mx-auto mb-4 animate-pulse text-accent" />
+        <p className="font-semibold">Fitting a 3D body to your photos…</p>
+        <p className="mt-3 text-xs text-muted">This takes a few seconds and runs on your device.</p>
+      </div>
+    );
+  }
+
   if (step === 'result' && scan && front && side) {
     const sites = Object.entries(scan.circumferences) as [MeasureSite, number][];
     const q = Math.round(scan.quality * 100);
+    const onModel = !!scan.body && !scan.warnings.includes(FIT_WARNING);
     return (
       <div>
-        {header('Your scan', 'Circumferences estimated from your photos.')}
+        {header(
+          'Your scan',
+          onModel
+            ? 'Circumferences measured on a 3D body fitted to your photos.'
+            : 'Circumferences estimated from your photos.',
+        )}
         <div className="mb-4 flex flex-wrap items-center gap-4">
           <div className="min-w-40 flex-1">
             <div className="flex justify-between text-sm">
@@ -364,9 +448,16 @@ export function ScanWizard({
               ))}
           </ul>
         )}
+        {fitted?.error && <p className="mt-3 text-xs text-muted">3D body fitting was unavailable ({fitted.error}).</p>}
+        {scan.warnings.includes(FIT_WARNING) && (
+          <p className="mt-3 flex gap-2 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" /> {FIT_WARNING}
+          </p>
+        )}
         <p className="mt-3 text-xs text-muted">
-          Photo measurements are typically within ±3–5 cm of a tape measure. For the best tracking, add tape
-          measurements now and then.
+          {onModel ? `The fitted body matches your outline within ±${round(scan.body!.rmsCm, 1)} cm on average. ` : ''}
+          With fitted clothing and a level phone, photo measurements are typically within ±2–4 cm of a tape measure. For
+          the best tracking, add tape measurements now and then.
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <Checkbox
@@ -386,7 +477,12 @@ export function ScanWizard({
           () => setStep('side'),
           <Button
             disabled={manual && !manualOk}
-            onClick={() => onComplete({ scan, photos: keepPhotos ? { front: front.blob, side: side.blob } : null })}
+            onClick={() =>
+              onComplete({
+                scan: { ...scan, photosKept: keepPhotos },
+                photos: keepPhotos ? { front: front.blob, side: side.blob } : null,
+              })
+            }
           >
             <Check size={16} /> Use this scan
           </Button>,

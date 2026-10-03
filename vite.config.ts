@@ -37,6 +37,12 @@ export default defineConfig({
         globIgnores: ['**/vision/**'],
         runtimeCaching: [
           {
+            // The 3D body model (~1.4 MB per sex, content-hashed) is fetched when first needed.
+            urlPattern: ({ url }) => url.pathname.endsWith('.bin'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'body-model', expiration: { maxEntries: 4 } },
+          },
+          {
             urlPattern: ({ url }) => url.pathname.includes('/vision/'),
             handler: 'CacheFirst',
             options: { cacheName: 'vision-models', expiration: { maxEntries: 12 } },

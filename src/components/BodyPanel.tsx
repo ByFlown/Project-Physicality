@@ -1,9 +1,12 @@
 import { ScanLine } from 'lucide-react';
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { BodyShape } from '../body3d/shape';
 import type { MuscleVisual } from '../body3d/BodyScene';
 import { bulgesOnDate, hasWebGL, muscleVisuals, type ColorMode } from '../body3d/visuals';
+import { fittedScan, type RealisticBody } from '../body3d/human/realistic';
+import { fitStoredScan } from '../scan/fitClient';
+import type { BodyFit } from '../domain/schema';
 import { formatDate } from '../domain/dates';
 import { useData } from '../store/hooks';
 import type { Simulation } from '../domain/engine';
@@ -85,6 +88,59 @@ export function BodyPanel({
   const detail = data.settings.modelDetail;
   const scan = data.scans.length ? data.scans.reduce((a, b) => (b.date >= a.date ? b : a)) : null;
   const bulgesAtScan = useMemo(() => (scan ? bulgesOnDate(sim, scan.date) : null), [sim, scan]);
+  const profile = data.profile;
+  // Older scans (and the demo's) have no fitted body yet: fit one from the stored numbers.
+  const [storedFit, setStoredFit] = useState<{ id: string; body: BodyFit } | null>(null);
+  const needsFit = detail === 'precise' && scan && scan.body?.sex !== profile?.sex && profile ? scan : null;
+  useEffect(() => {
+    if (!needsFit || !profile) return;
+    let live = true;
+    fitStoredScan(needsFit, profile.sex).then(
+      (body) => live && setStoredFit({ id: needsFit.id, body }),
+      () => undefined, // keep the profile-predicted body
+    );
+    return () => {
+      live = false;
+    };
+  }, [needsFit, profile]);
+  const fitted = useMemo(
+    () =>
+      scan && storedFit?.id === scan.id && storedFit.body.sex === profile?.sex
+        ? { ...scan, body: storedFit.body }
+        : profile
+          ? fittedScan(data.scans, profile.sex)
+          : null,
+    [scan, storedFit, data.scans, profile],
+  );
+  // The realistic body: shaped by the latest fitted scan, else predicted from the profile at its
+  // start; muscles and fat are drawn as changes since that moment.
+  const realistic = useMemo<RealisticBody | null>(() => {
+    if (!profile) return null;
+    if (fitted?.body) {
+      return {
+        sex: profile.sex,
+        statureM: fitted.heightCm / 100,
+        coeffs: fitted.body.coeffs,
+        anchorBulges: bulgesOnDate(sim, fitted.date),
+        fatDelta: fitted.bodyFatPct !== undefined ? shape.bodyFatPct - fitted.bodyFatPct : 0,
+        scanId: fitted.id,
+      };
+    }
+    const startBf = profile.startBodyFatPct ?? shape.bodyFatPct;
+    return {
+      sex: profile.sex,
+      statureM: profile.heightCm / 100,
+      profile: {
+        sex: profile.sex,
+        heightCm: profile.heightCm,
+        weightKg: profile.startWeightKg,
+        bodyFatPct: startBf,
+        ageYears: Number(profile.startDate.slice(0, 4)) - profile.birthYear,
+      },
+      anchorBulges: bulgesOnDate(sim, sim.startDate),
+      fatDelta: shape.bodyFatPct - startBf,
+    };
+  }, [profile, fitted, sim, shape.bodyFatPct]);
   const select = onSelect ?? ((id: MuscleId) => navigate(`/muscles/${id}`));
   const webgl = hasWebGL();
 
@@ -120,6 +176,8 @@ export function BodyPanel({
             detail={detail}
             scan={scan}
             bulgesAtScan={bulgesAtScan}
+            realistic={realistic}
+            skinTone={data.settings.skinTone}
             muscles={visuals}
             selected={selected}
             onSelect={select}
@@ -132,22 +190,31 @@ export function BodyPanel({
       <Legend mode={mode} />
       <p className="flex items-center gap-1.5 text-xs text-muted">
         <ScanLine size={14} />
-        {detail === 'precise' && scan ? (
+        {detail === 'precise' && fitted ? (
           <span>
-            Precise model, calibrated to your body scan from {formatDate(scan.date, { dateStyle: 'medium' })}.{' '}
+            Realistic body fitted to your scan from {formatDate(fitted.date, { dateStyle: 'medium' })}; muscles show
+            your progress since.{' '}
             <Link to="/scan" className="text-accent underline">
               Re-scan
             </Link>
           </span>
+        ) : detail === 'precise' && scan ? (
+          <span>
+            Precise model, calibrated to your body scan from {formatDate(scan.date, { dateStyle: 'medium' })}.{' '}
+            <Link to="/scan" className="text-accent underline">
+              Re-scan
+            </Link>{' '}
+            to get a body fitted to your photos.
+          </span>
         ) : detail === 'precise' ? (
           <span>
-            Scan your body to unlock the precise model.{' '}
+            Body predicted from your height, weight and body fat. Scan your body to shape it like you.{' '}
             <Link to="/scan" className="text-accent underline">
               Start a scan
             </Link>
           </span>
         ) : (
-          <span>Standard model. Switch to Precise in Settings to use your body scan.</span>
+          <span>Standard model. Switch to Realistic in Settings for a body shaped like yours.</span>
         )}
       </p>
     </div>

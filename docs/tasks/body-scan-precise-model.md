@@ -96,7 +96,8 @@ Keep `npm run check` green after each step. That's typecheck + `oxlint --deny-wa
       here. The front view was verified on a real CC0 photo: after the fixes, neck 12.6 cm and chest 28 cm widths,
       lines on the right anatomy.
 - [ ] **Tune the ellipse/rectangle k-factors and `SCAN_REFERENCE` anchors** in `src/scan/buildScan.ts` and
-      `src/domain/assessment.ts` against those tape measurements.
+      `src/domain/assessment.ts` against those tape measurements. _Superseded for circumferences: they now come from
+      the fitted body (`docs/tasks/precision-and-realism.md`); the chord method is the fallback._
 - [ ] **Upper arm width is underestimated when the arms hang against the torso.** One side is capped, so we assume
       symmetry about the free side. It works when users follow the "arms 30–45° out" instruction, and the user can
       drag the line.

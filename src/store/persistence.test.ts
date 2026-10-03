@@ -57,9 +57,20 @@ describe('migrations', () => {
     const parsed = parseAppData(v1);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
-      expect(parsed.data.version).toBe(2);
+      expect(parsed.data.version).toBe(3);
       expect(parsed.data.scans).toEqual([]);
       expect(parsed.data.settings).toEqual({ units: 'imperial', theme: 'dark', modelDetail: 'precise' });
+    }
+  });
+
+  it('upgrades v2 data with scans to v3 unchanged', async () => {
+    const { parseAppData } = await import('./persistence');
+    const demo = buildDemoData('2026-06-01');
+    const parsed = parseAppData({ ...demo, version: 2 });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.data.version).toBe(3);
+      expect(parsed.data.scans).toEqual(demo.scans);
     }
   });
 });

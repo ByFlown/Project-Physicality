@@ -133,6 +133,8 @@ export const settingsSchema = z.object({
   theme: z.enum(['system', 'dark', 'light']),
   /** 'precise' uses scanned proportions, more muscle heads and a denser mesh. */
   modelDetail: z.enum(['standard', 'precise']),
+  /** Skin tone of the realistic body (index into SKIN_TONES, light → dark). */
+  skinTone: z.number().int().min(0).max(5).optional(),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
@@ -141,6 +143,18 @@ const cm = z.number().min(0).max(300);
 /** A cross-section measured from photos: full width (front view) and depth (side view), in cm. */
 export const sectionSchema = z.object({ w: cm, d: cm });
 export type Section = z.infer<typeof sectionSchema>;
+
+/** Shape coefficients of the baked body model (src/body3d/human), fitted to a scan. */
+export const bodyFitSchema = z.object({
+  /** Body model version the coefficients belong to. */
+  model: z.literal('mh-pca-1'),
+  /** Coefficients live in one sex's shape space. */
+  sex: sexSchema,
+  coeffs: z.array(z.number().min(-10).max(10)).max(64),
+  /** RMS silhouette mismatch after fitting, cm. */
+  rmsCm: z.number().min(0).max(100),
+});
+export type BodyFit = z.infer<typeof bodyFitSchema>;
 
 /**
  * Body geometry derived from a front + side photo scan. Only derived numbers
@@ -191,10 +205,15 @@ export const scanSchema = z.object({
   bodyFatPct: z.number().min(3).max(60).optional(),
   /** Whether front/side photos were kept on this device. */
   photosKept: z.boolean(),
+  /**
+   * The 3D body model fitted to the photos. When present, `circumferences`
+   * were measured on this body rather than estimated from chords.
+   */
+  body: bodyFitSchema.optional(),
 });
 export type Scan = z.infer<typeof scanSchema>;
 
-export const DATA_VERSION = 2;
+export const DATA_VERSION = 3;
 
 export const appDataSchema = z.object({
   version: z.literal(DATA_VERSION),
