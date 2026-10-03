@@ -7,6 +7,7 @@ import type { MuscleVisual } from './BodyScene';
 import type { MuscleLook, RGB } from './deform';
 import { avatarColors, buildAvatar } from './human/avatar';
 import type { LoadedHuman } from './human/loadedHuman';
+import { makeSkinMaterial } from './human/skinMaterial';
 
 export interface HumanSceneProps {
   human: LoadedHuman;
@@ -65,18 +66,26 @@ export function HumanScene({
       anchorBulges,
       fatDelta,
       detail,
+      clothing: human.clothing,
+      adjacency: human.adjacency,
     });
   }, [human, coeffs, statureM, bulgeKey, anchorBulges, fatDelta, detail]);
+
+  const material = useMemo(() => makeSkinMaterial(human.pattern, clothColor), [human, clothColor]);
+  useEffect(() => () => material.dispose(), [material]);
 
   const geometry = useMemo(() => {
     const g = new BufferGeometry();
     g.setAttribute('position', new BufferAttribute(geo.positions, 3));
     g.setAttribute('color', new BufferAttribute(new Float32Array(geo.positions.length), 3));
+    g.setAttribute('aRest', new BufferAttribute(human.pattern.rest, 3));
+    g.setAttribute('aBare', new BufferAttribute(human.pattern.bare, 1));
+    g.setAttribute('aHighlight', new BufferAttribute(new Float32Array(geo.owner.length), 1));
     g.setIndex(new BufferAttribute(geo.index, 1));
     g.computeVertexNormals();
     g.computeBoundingSphere();
     return g;
-  }, [geo]);
+  }, [geo, human]);
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   const looks = useMemo(() => {
@@ -97,16 +106,18 @@ export function HumanScene({
       geo,
       human.clothing,
       looks,
-      {
-        skin: toLinear(skinColor),
-        cloth: toLinear(clothColor),
-        tint: overlay ? 0.6 : 0,
-        adjacency: human.adjacency,
-      },
+      { skin: toLinear(skinColor), tint: overlay ? 0.6 : 0, adjacency: human.adjacency },
       attr.array as Float32Array,
     );
     attr.needsUpdate = true;
-  }, [geometry, geo, human, looks, skinColor, clothColor, overlay]);
+    const hl = geometry.getAttribute('aHighlight') as BufferAttribute;
+    const h = hl.array as Float32Array;
+    for (let v = 0; v < h.length; v++) {
+      const o = geo.owner[v];
+      h[v] = o >= 0 ? looks[MUSCLE_IDS[o]].highlight * geo.ownerCoverage[v] : 0;
+    }
+    hl.needsUpdate = true;
+  }, [geometry, geo, human, looks, skinColor, overlay]);
 
   const pick = (e: ThreeEvent<PointerEvent | MouseEvent>): MuscleId | null => {
     const f = e.face;
@@ -118,6 +129,7 @@ export function HumanScene({
   return (
     <mesh
       geometry={geometry}
+      material={material}
       castShadow
       receiveShadow
       onPointerMove={(e) => {
@@ -130,8 +142,6 @@ export function HumanScene({
         const id = pick(e);
         if (id) onSelect?.(id);
       }}
-    >
-      <meshStandardMaterial vertexColors roughness={0.6} metalness={0} />
-    </mesh>
+    />
   );
 }

@@ -1,8 +1,14 @@
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { loadHumanModel } from '../../src/body3d/human/load';
 import type { MuscleLook } from '../../src/body3d/deform';
-import { avatarColors, buildAvatar, clothingMask } from '../../src/body3d/human/avatar';
+import {
+  avatarColors,
+  buildAvatar,
+  clothingMask,
+  clothingPattern,
+  vertexAdjacency,
+} from '../../src/body3d/human/avatar';
+import { makeSkinMaterial } from '../../src/body3d/human/skinMaterial';
 import { AVERAGE_SHAPE, coeffsFromSemantic } from '../../src/body3d/human/model';
 import { buildMuscleMap } from '../../src/body3d/human/muscleMap';
 import { MUSCLE_IDS, type MuscleId } from '../../src/domain/muscles';
@@ -20,14 +26,14 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#1b1e24');
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.6;
-const key = new THREE.DirectionalLight('#ffffff', 2.2);
-key.position.set(2, 4, 3);
+// Same rig as BodyViewer's realistic mode (dark theme).
+scene.add(new THREE.AmbientLight('#ffffff', 0.12));
+scene.add(new THREE.HemisphereLight('#fff8f0', '#1a1410', 0.7));
+const key = new THREE.DirectionalLight('#ffffff', 1.9);
+key.position.set(2.2, 3.6, 3);
 scene.add(key);
-const rim = new THREE.DirectionalLight('#9fb8ff', 1.4);
-rim.position.set(-2.5, 3, -3);
+const rim = new THREE.DirectionalLight('#a9c1ff', 1.4);
+rim.position.set(-2.8, 2.6, -2.5);
 scene.add(rim);
 
 const model = await loadHumanModel(sex);
@@ -38,6 +44,7 @@ const coeffs = coeffsFromSemantic(model, {
   muscle: Number(q.get('muscle') ?? 0.5),
 });
 const map = buildMuscleMap(model);
+const pattern = clothingPattern(model);
 const now = Number(q.get('bulge') ?? 1);
 const only = q.get('only');
 const bulges = Object.fromEntries(MUSCLE_IDS.map((id) => [id, !only || only === id ? now : 1])) as Record<
@@ -55,6 +62,8 @@ const geo = buildAvatar({
   anchorBulges: anchor,
   detail: 'precise',
   fatDelta: Number(q.get('fat') ?? 0),
+  clothing: clothingMask(model),
+  adjacency: vertexAdjacency(model),
 });
 const t1 = performance.now();
 const looks = Object.fromEntries(
@@ -66,7 +75,6 @@ const looks = Object.fromEntries(
 const skinC = new THREE.Color(q.get('color') ?? '#c9a58c');
 const colors = avatarColors(geo, clothingMask(model), looks, {
   skin: [skinC.r, skinC.g, skinC.b],
-  cloth: [0.12, 0.13, 0.16],
   tint: Number(q.get('tint') ?? 0.85),
 });
 console.log('build ms', (t1 - t0).toFixed(1));
@@ -74,14 +82,11 @@ const bg = new THREE.BufferGeometry();
 bg.setAttribute('position', new THREE.BufferAttribute(geo.positions, 3));
 bg.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 bg.setIndex(new THREE.BufferAttribute(geo.index, 1));
+bg.setAttribute('aRest', new THREE.BufferAttribute(pattern.rest, 3));
+bg.setAttribute('aBare', new THREE.BufferAttribute(pattern.bare, 1));
+bg.setAttribute('aHighlight', new THREE.BufferAttribute(new Float32Array(model.vertexCount), 1));
 bg.computeVertexNormals();
-const mat = new THREE.MeshPhysicalMaterial({
-  vertexColors: true,
-  roughness: 0.55,
-  sheen: 0.4,
-  sheenRoughness: 0.6,
-  sheenColor: new THREE.Color('#ffd9c7'),
-});
+const mat = makeSkinMaterial(pattern, '#2b303b');
 scene.add(new THREE.Mesh(bg, mat));
 
 const views = view === 'grid' ? ['front', 'side', 'back', 'three-quarter'] : [view];
@@ -89,9 +94,9 @@ renderer.setSize(W * views.length, H);
 renderer.setScissorTest(true);
 views.forEach((v, i) => {
   const cam = new THREE.PerspectiveCamera(28, W / H, 0.1, 50);
-  const target = new THREE.Vector3(0, stature * 0.52, 0);
+  const target = new THREE.Vector3(0, stature * Number(q.get('ty') ?? 0.52), 0);
   const az = { front: 0, side: Math.PI / 2, back: Math.PI, 'three-quarter': Math.PI / 5 }[v] ?? 0;
-  const dist = 4.6;
+  const dist = Number(q.get('dist') ?? 4.6);
   cam.position.set(Math.sin(az) * dist, target.y + 0.2, Math.cos(az) * dist);
   cam.lookAt(target);
   renderer.setViewport(i * W, 0, W, H);

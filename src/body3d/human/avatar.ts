@@ -50,6 +50,9 @@ export interface AvatarInput {
   detail: ModelDetail;
   /** Arm abduction from vertical, radians. */
   armAbduction?: number;
+  /** Clothing coverage per vertex; covered areas are smoothed like fabric over skin. */
+  clothing?: Float32Array;
+  adjacency?: Adjacency;
 }
 
 export interface AvatarGeometry {
@@ -107,6 +110,12 @@ export function buildAvatar(input: AvatarInput): AvatarGeometry {
   for (const f of FAT_SCULPTS) {
     sculpt[f.target] = Math.max(-1, Math.min(1, (sculpt[f.target] ?? 0) + f.gain * (input.fatDelta ?? 0)));
   }
+  // The sports top covers the chest: fabric doesn't follow nipples.
+  if (input.clothing && model.sex === 'female') {
+    sculpt['nipple-size'] = -1;
+    sculpt['nipple-point'] = -1;
+    sculpt['breast-point'] = -0.8;
+  }
   addTargets(model, half, sculpt);
   const rest = expandHalf(model, half, S);
   const joints = jointsOf(model, half, S);
@@ -153,6 +162,8 @@ export function buildAvatar(input: AvatarInput): AvatarGeometry {
     ownerCoverage[v] = Math.min(1, bestCov);
   }
 
+  if (input.clothing && input.adjacency) smoothUnderClothing(rest, input.clothing, input.adjacency);
+
   const bones = solvePose(
     model,
     joints,
@@ -162,42 +173,67 @@ export function buildAvatar(input: AvatarInput): AvatarGeometry {
 }
 
 /**
- * How much each vertex is covered by simple fitted underwear (0..1, soft edges), from its
- * position on the mean body. Computed once per model; the realistic body is otherwise nude.
+ * Simple fitted underwear — briefs, plus a sports top for female bodies —
+ * defined on the mean body's rest pose (stature 1), so it sits the same on
+ * every body shape. The realistic body is otherwise nude.
  */
-export function clothingMask(model: HumanModel): Float32Array {
+export interface ClothingPattern {
+  /** Rest-pose position of every vertex on the mean body (stature 1). */
+  rest: Float32Array;
+  /** 1 for vertices that never wear clothing (arms, hands, head). */
+  bare: Float32Array;
+  hip: number;
+  knee: number;
+  shoulder: number;
+  legCut: number;
+  briefTop: number;
+  top: boolean;
+}
+
+const CLOTH_SOFT = 0.004; // ≈ 7 mm at 1.8 m
+
+export function clothingPattern(model: HumanModel): ClothingPattern {
   const half = shapeHalf(model, []);
-  const pos = expandHalf(model, half, 1);
+  const rest = expandHalf(model, half, 1);
   const j = jointsOf(model, half, 1);
-  const hip = j['upperleg.L'][1];
-  const knee = j['knee.L'][1];
-  const shoulder = j['upperarm.L'][1];
   const parts = vertexParts(model);
-  const mask = new Float32Array(model.vertexCount);
   let crotch = Infinity;
   for (let v = 0; v < model.vertexCount; v++)
-    if (Math.abs(pos[v * 3]) < 1e-5) crotch = Math.min(crotch, pos[v * 3 + 1]);
-  const soft = 0.005; // ≈ 1 cm at 1.8 m
-  const band = (y: number, lo: number, hi: number) => smoothstep(-soft, soft, Math.min(y - lo, hi - y));
-  const top = hip + 0.06;
-  const legCut = crotch - 0.035;
-  for (let v = 0; v < model.vertexCount; v++) {
-    if (parts[v] === PART_INDEX.arm || parts[v] === PART_INDEX.head) continue;
-    const x = Math.abs(pos[v * 3]);
-    const y = pos[v * 3 + 1];
-    if (y < knee) continue;
-    // Briefs: below the navel to the top of the thighs; leg openings rise toward the hips.
-    const bottom = legCut + Math.min(1, x / 0.11) * (hip - 0.02 - legCut) * 0.55;
-    let w = band(y, bottom, top);
-    // Sports top for female bodies: under the shoulders to below the bust.
-    if (model.sex === 'female') {
-      const z = pos[v * 3 + 2];
-      const chestTop = shoulder - 0.045 + (z > 0 ? 0 : 0.02);
-      w = Math.max(w, band(y, shoulder - 0.17, chestTop) * smoothstep(-soft, soft, 0.13 - x));
-    }
-    mask[v] = w;
+    if (Math.abs(rest[v * 3]) < 1e-5) crotch = Math.min(crotch, rest[v * 3 + 1]);
+  const hip = j['upperleg.L'][1];
+  return {
+    rest,
+    bare: Float32Array.from(parts, (p) => (p === PART_INDEX.arm || p === PART_INDEX.head ? 1 : 0)),
+    hip,
+    knee: j['knee.L'][1],
+    shoulder: j['upperarm.L'][1],
+    legCut: crotch - 0.035,
+    briefTop: hip + 0.06,
+    top: model.sex === 'female',
+  };
+}
+
+/** Clothing coverage (0..1) at a rest-pose point. Mirrored in HumanScene's shader — keep them in sync. */
+export function clothingAt(c: ClothingPattern, px: number, y: number, z: number): number {
+  const x = Math.abs(px);
+  if (y < c.knee) return 0;
+  const band = (lo: number, hi: number) => smoothstep(-CLOTH_SOFT, CLOTH_SOFT, Math.min(y - lo, hi - y));
+  // Leg openings rise toward the hips.
+  const bottom = c.legCut + Math.min(1, x / 0.11) * (c.hip - 0.02 - c.legCut) * 0.55;
+  let w = band(bottom, c.briefTop);
+  if (c.top) {
+    const chestTop = c.shoulder - 0.045 + (z > 0 ? 0 : 0.02);
+    w = Math.max(w, band(c.shoulder - 0.17, chestTop) * smoothstep(-CLOTH_SOFT, CLOTH_SOFT, 0.13 - x));
   }
-  return mask;
+  return w;
+}
+
+/** Per-vertex clothing coverage (used to relax the skin under fabric). */
+export function clothingMask(model: HumanModel, pattern = clothingPattern(model)): Float32Array {
+  const r = pattern.rest;
+  return Float32Array.from({ length: model.vertexCount }, (_, v) =>
+    pattern.bare[v] ? 0 : clothingAt(pattern, r[v * 3], r[v * 3 + 1], r[v * 3 + 2]),
+  );
 }
 
 function smoothstep(e0: number, e1: number, x: number) {
@@ -207,7 +243,8 @@ function smoothstep(e0: number, e1: number, x: number) {
 
 export interface ColorOptions {
   skin: RGB;
-  cloth: RGB;
+  /** Paint clothing into the vertex colours (omit when a shader draws it). */
+  cloth?: RGB;
   /** Opacity of the muscle colours over skin (0 = skin only; hovered/selected muscles still show). */
   tint: number;
   adjacency?: Adjacency;
@@ -224,11 +261,12 @@ export function avatarColors(
   const n = geo.owner.length;
   const col = out ?? new Float32Array(n * 3);
   for (let v = 0; v < n; v++) {
-    const cw = clothing[v];
+    const cw = opts.cloth ? clothing[v] : 0;
+    const cloth = opts.cloth ?? opts.skin;
     const o = geo.owner[v];
-    let r = opts.skin[0] + (opts.cloth[0] - opts.skin[0]) * cw;
-    let g = opts.skin[1] + (opts.cloth[1] - opts.skin[1]) * cw;
-    let b = opts.skin[2] + (opts.cloth[2] - opts.skin[2]) * cw;
+    let r = opts.skin[0] + (cloth[0] - opts.skin[0]) * cw;
+    let g = opts.skin[1] + (cloth[1] - opts.skin[1]) * cw;
+    let b = opts.skin[2] + (cloth[2] - opts.skin[2]) * cw;
     if (o >= 0) {
       const look = looks[MUSCLE_IDS[o]];
       const hi = look.highlight;
@@ -275,6 +313,35 @@ export function vertexAdjacency(model: HumanModel): Adjacency {
   });
   offsets[model.vertexCount] = out.length;
   return { offsets, neighbours: Uint16Array.from(out) };
+}
+
+/** Fabric does not follow small skin detail (nipples, navel): relax covered vertices toward their neighbours. */
+function smoothUnderClothing(pos: Float32Array, clothing: Float32Array, adj: Adjacency, iterations = 10) {
+  const next = new Float32Array(pos.length);
+  for (let it = 0; it < iterations; it++) {
+    next.set(pos);
+    for (let v = 0; v < clothing.length; v++) {
+      const c = clothing[v];
+      if (c < 0.05) continue;
+      const lo = adj.offsets[v];
+      const hi = adj.offsets[v + 1];
+      if (hi === lo) continue;
+      let x = 0;
+      let y = 0;
+      let z = 0;
+      for (let e = lo; e < hi; e++) {
+        const u = adj.neighbours[e] * 3;
+        x += pos[u];
+        y += pos[u + 1];
+        z += pos[u + 2];
+      }
+      const k = (0.6 * c) / (hi - lo);
+      next[v * 3] += x * k - 0.6 * c * pos[v * 3];
+      next[v * 3 + 1] += y * k - 0.6 * c * pos[v * 3 + 1];
+      next[v * 3 + 2] += z * k - 0.6 * c * pos[v * 3 + 2];
+    }
+    pos.set(next);
+  }
 }
 
 /** Soften blocky per-vertex colour edges by averaging with neighbours. */

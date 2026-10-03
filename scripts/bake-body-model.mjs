@@ -299,7 +299,14 @@ const LOCAL = [
   ].map((n) => ({ name: n, files: [`armslegs/l-${n}`, `armslegs/r-${n}`] })),
 ];
 /** Local sliders also shipped as exact sparse targets (muscle growth and fat on the realistic model). */
+/** Shipped as sparse targets but not part of the shape space (cosmetic: fabric over the chest). */
+const EXTRA_TARGETS = [
+  { name: 'nipple-size', files: ['breast/nipple-size'] },
+  { name: 'nipple-point', files: ['breast/nipple-point'] },
+  { name: 'breast-point', files: ['breast/breast-point'] },
+];
 const SHIPPED_TARGETS = [
+  ...EXTRA_TARGETS.map((t) => t.name),
   'upperarm-muscle',
   'upperarm-shoulder-muscle',
   'lowerarm-muscle',
@@ -747,7 +754,7 @@ for (const sex of ['male', 'female']) {
   const w = new Writer();
   const targetsMeta = {};
   for (const name of SHIPPED_TARGETS) {
-    const l = LOCAL.find((x) => x.name === name);
+    const l = LOCAL.find((x) => x.name === name) ?? EXTRA_TARGETS.find((x) => x.name === name);
     for (const dir of ['incr', 'decr']) {
       const delta = new Float64Array(NB * 3);
       for (const f of l.files) {
