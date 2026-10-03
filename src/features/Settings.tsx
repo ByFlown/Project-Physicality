@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from '../components/toast-store';
 import { Button, Card, CardTitle, Field, Input, NumberInput, PageHeader, Segmented, Select } from '../components/ui';
+import { DEFAULT_SKIN_TONE, SKIN_TONES } from '../body3d/human/realistic';
 import { today } from '../domain/dates';
+import { cx } from '../lib/cx';
 import { EXPERIENCE_LABELS, profileSchema, type Experience, type Profile } from '../domain/schema';
 import { cmToDisplay, displayToCm, displayToKg, kgToDisplay, lengthUnit, round, weightUnit } from '../lib/units';
 import { parseImport, serializeExport } from '../store/persistence';
@@ -209,7 +211,8 @@ export default function SettingsPage() {
             <div>
               <span className="text-sm font-medium">3D model detail</span>
               <p className="text-xs text-muted">
-                Precise uses your latest body scan and extra muscle heads. Standard is lighter for older devices.
+                Realistic shows a human body shaped by your latest scan (or your profile) with extra muscle heads.
+                Standard is a lighter stylised body for older devices.
               </p>
             </div>
             <Segmented
@@ -218,10 +221,35 @@ export default function SettingsPage() {
               onChange={(modelDetail) => updateSettings({ modelDetail })}
               options={[
                 { value: 'standard', label: 'Standard' },
-                { value: 'precise', label: 'Precise' },
+                { value: 'precise', label: 'Realistic' },
               ]}
             />
           </div>
+          {data.settings.modelDetail === 'precise' && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-sm font-medium">Skin tone</span>
+              <div role="radiogroup" aria-label="Skin tone" className="flex gap-2">
+                {SKIN_TONES.map((tone, i) => {
+                  const active = (data.settings.skinTone ?? DEFAULT_SKIN_TONE) === i;
+                  return (
+                    <button
+                      key={tone}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={`Skin tone ${i + 1}`}
+                      onClick={() => updateSettings({ skinTone: i })}
+                      className={cx(
+                        'h-7 w-7 rounded-full border-2 transition',
+                        active ? 'border-accent ring-2 ring-accent/40' : 'border-border',
+                      )}
+                      style={{ background: tone }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

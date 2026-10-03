@@ -55,7 +55,7 @@ test('onboarding requires a scan, then shows the calibrated dashboard', async ({
   await onboard(page);
   await expect(page.getByText(/XP to level/)).toBeVisible();
   await expect(page.getByRole('link', { name: /Calves/ }).first()).toBeVisible();
-  await expect(page.getByText(/calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/fitted to your scan/)).toBeVisible({ timeout: 15_000 });
   await page.goto('/scan');
   await expect(page.getByText('Placed by hand')).toBeVisible();
   await page.goto('/measurements');

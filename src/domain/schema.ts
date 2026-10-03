@@ -133,6 +133,8 @@ export const settingsSchema = z.object({
   theme: z.enum(['system', 'dark', 'light']),
   /** 'precise' uses scanned proportions, more muscle heads and a denser mesh. */
   modelDetail: z.enum(['standard', 'precise']),
+  /** Skin tone of the realistic body (index into SKIN_TONES, light → dark). */
+  skinTone: z.number().int().min(0).max(5).optional(),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
