@@ -23,6 +23,8 @@ import { detectPerson } from '../../scan/detector';
 import { analyzeFront, analyzeSide, sideLevelsFromFront } from '../../scan/geometry';
 import { loadPhoto, releasePhoto, type LoadedPhoto } from '../../scan/photo';
 import type { ViewAnalysis } from '../../scan/types';
+import { requestOrientationAccess, TILT_WARNING, tiltWarning } from '../../scan/level';
+import { CameraCapture } from './CameraCapture';
 import { ScanEditor } from './ScanEditor';
 
 export interface ScanResult {
@@ -35,7 +37,10 @@ type Step = 'intro' | 'photos' | 'analyzing' | 'front' | 'side' | 'result';
 const TIPS: { icon: ReactNode; text: string }[] = [
   { icon: <Check size={16} />, text: 'Fitted clothing or underwear — loose clothes inflate every measurement.' },
   { icon: <Check size={16} />, text: 'Plain background, good light, whole body in frame from head to feet.' },
-  { icon: <Check size={16} />, text: 'Phone upright at hip height, 2–3 m away (a timer or a helper works best).' },
+  {
+    icon: <Check size={16} />,
+    text: 'Phone upright (not tilted) at hip height, 2–3 m away. The in-app camera shows a level and has a 10 s timer.',
+  },
   {
     icon: <Check size={16} />,
     text: 'Front photo: face the camera, arms 30–45° away from your body, feet hip-width apart.',
@@ -118,6 +123,9 @@ export function ScanWizard({
   const [frontA, setFrontA] = useState<ViewAnalysis | null>(null);
   const [sideA, setSideA] = useState<ViewAnalysis | null>(null);
   const [keepPhotos, setKeepPhotos] = useState(false);
+  const [camera, setCamera] = useState<'front' | 'side' | null>(null);
+  const [tilts, setTilts] = useState<{ front: number | null; side: number | null }>({ front: null, side: null });
+  const canUseCamera = typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function';
   const [manualOk, setManualOk] = useState(false);
 
   // Release object URLs when photos are replaced or the wizard unmounts.
@@ -145,6 +153,13 @@ export function ScanWizard({
     if (f.error) setDetectError(f.error);
     const fa = analyzeFront(f.mask, f.landmarks, front.width, front.height, sex);
     const sa = analyzeSide(s.mask, s.landmarks, side.width, side.height, sideLevelsFromFront(fa));
+    // Photos taken with the in-app camera know how tilted the phone was.
+    for (const [a, t] of [
+      [fa, tilts.front],
+      [sa, tilts.side],
+    ] as const) {
+      if (t !== null && Math.abs(t) > TILT_WARNING) a.warnings.push(tiltWarning(t));
+    }
     setFrontA(fa);
     setSideA(sa);
     setStep('front');
@@ -248,10 +263,47 @@ export function ScanWizard({
             label="Front"
             hint="Facing the camera, arms away from the body"
             photo={front}
-            onFile={(f) => take(f, setFront)}
+            onFile={(f) => {
+              setTilts((t) => ({ ...t, front: null }));
+              void take(f, setFront);
+            }}
           />
-          <PhotoSlot label="Side" hint="Turned 90°, arms relaxed" photo={side} onFile={(f) => take(f, setSide)} />
+          <PhotoSlot
+            label="Side"
+            hint="Turned 90°, arms relaxed"
+            photo={side}
+            onFile={(f) => {
+              setTilts((t) => ({ ...t, side: null }));
+              void take(f, setSide);
+            }}
+          />
+          {canUseCamera &&
+            (['front', 'side'] as const).map((v) => (
+              <Button
+                key={v}
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  requestOrientationAccess();
+                  setCamera(v);
+                }}
+              >
+                <Camera size={14} /> Use camera
+              </Button>
+            ))}
         </div>
+        {camera && (
+          <CameraCapture
+            label={camera === 'front' ? 'Front' : 'Side'}
+            onClose={() => setCamera(null)}
+            onCapture={(file, tilt) => {
+              const view = camera;
+              setCamera(null);
+              setTilts((t) => ({ ...t, [view]: tilt ? tilt.pitch : null }));
+              void take(file, view === 'front' ? setFront : setSide);
+            }}
+          />
+        )}
         {error && <p className="mt-3 text-sm text-bad">{error}</p>}
         {nav(
           () => setStep('intro'),

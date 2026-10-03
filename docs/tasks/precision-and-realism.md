@@ -67,7 +67,9 @@ Key files:
 - [x] Robust (Huber) loss; side-profile shape observations; stable neck site definition
 - [x] Refit for stored scans without a body (older scans, demo), display only
 - [ ] **Validate on real people with a tape measure** (the most important open item; see §6)
-- [ ] In-app capture with a tilt/level guide (§4.4)
+- [x] In-app capture with a tilt/level guide (`CameraCapture`, `scan/level.ts`): live bubble level within ±2°,
+      10 s self-timer, tilt recorded and warned about (>4°). Upload stays available. nginx now allows
+      `camera=(self)`.
 - [ ] Hair: the top of the mask is the top of the hair (1–3 cm → ~1% scale); not simulated in the benchmark
 
 ### 4.2 Results (`npm run scan:bench`, 30 bodies per sex per row, mean absolute error, cm)
@@ -103,9 +105,9 @@ that is camera tilt.
 1. **Real-world validation.** Scan 5–10 people, tape-measure each site twice, record here. If a site is
    biased consistently, correct it in `sites.ts` (definition) or as a calibration offset — not by tuning to one
    person.
-2. **Level guide at capture.** Tilt costs ~0.9 cm MAE. Offer in-app capture (`getUserMedia`) with a
-   `DeviceOrientation` bubble level and a 10 s self-timer; only enable the shutter within ±2°. Keep upload as
-   the fallback. (iOS needs a permission prompt for orientation.)
+2. **Use the recorded tilt.** Capture now records the phone's pitch. With the camera's focal length (not
+   exposed by browsers; could be estimated from the photo's EXIF when uploaded), the fit could correct the
+   keystone instead of just warning. Test on real iOS/Android devices: iOS asks for motion permission.
 3. **Hair.** Detect hair at the top of the mask (category 1) and pull the head-top line down to an estimate
    from the face/ear landmarks when hair is thick.
 4. **Fit the pose too.** The fit assumes the photo's arm angle from landmarks and a fixed leg stance; adding leg
