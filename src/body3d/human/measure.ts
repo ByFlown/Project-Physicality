@@ -12,9 +12,18 @@ export interface Plane {
   normal: Vec3;
 }
 
+/** The mesh edge a slice point lies on: lerp(vertex a, vertex b, t). */
+export interface SliceEdge {
+  a: number;
+  b: number;
+  t: number;
+}
+
 export interface SliceLoop {
   /** Points in plane coordinates (u, v). */
   points: [number, number][];
+  /** Source edge of each point (same order). */
+  edges: SliceEdge[];
   /** Centroid in plane coordinates. */
   center: [number, number];
 }
@@ -71,6 +80,7 @@ export function slice(
   // Edge-crossing points keyed by vertex pair, linked into loops with union-find.
   const pointOf = new Map<number, number>();
   const pts: [number, number][] = [];
+  const edges: SliceEdge[] = [];
   const parent: number[] = [];
   const find = (a: number): number => {
     while (parent[a] !== a) a = parent[a] = parent[parent[a]];
@@ -89,6 +99,7 @@ export function slice(
     const rel: Vec3 = [p[0] - plane.origin[0], p[1] - plane.origin[1], p[2] - plane.origin[2]];
     id = pts.length;
     pts.push([dot(rel, u), dot(rel, v)]);
+    edges.push({ a, b, t });
     parent.push(id);
     pointOf.set(k, id);
     return id;
@@ -112,15 +123,16 @@ export function slice(
       if (ra !== rb) parent[ra] = rb;
     }
   }
-  const groups = new Map<number, [number, number][]>();
-  pts.forEach((p, i) => {
+  const groups = new Map<number, number[]>();
+  pts.forEach((_, i) => {
     const r = find(i);
     let g = groups.get(r);
     if (!g) groups.set(r, (g = []));
-    g.push(p);
+    g.push(i);
   });
   const loops: SliceLoop[] = [];
-  for (const points of groups.values()) {
+  for (const ids of groups.values()) {
+    const points = ids.map((i) => pts[i]);
     if (points.length < 3) continue;
     let cu = 0;
     let cv = 0;
@@ -128,7 +140,7 @@ export function slice(
       cu += p[0];
       cv += p[1];
     }
-    loops.push({ points, center: [cu / points.length, cv / points.length] });
+    loops.push({ points, edges: ids.map((i) => edges[i]), center: [cu / points.length, cv / points.length] });
   }
   return { u, v, loops };
 }

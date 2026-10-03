@@ -104,7 +104,8 @@ export function measureSites(ctx: MeasureContext): Partial<Record<MeasureSite, S
   const at = (f: number) => shoulderY - f * torsoLen;
   const out: Partial<Record<MeasureSite, SiteMeasurement>> = {};
 
-  const neck = limbGirth(ctx, j.neck, j.head, 0.45, 'head');
+  // Just below the larynx, perpendicular to the neck. No part filter: skin weights blend across the neck.
+  const neck = limbGirth(ctx, j.neck, j.head, 0.4, null);
   if (neck) out.neck = neck;
   const chest = torsoGirthAt(ctx, at(0.3));
   if (chest) out.chest = chest;

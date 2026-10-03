@@ -23,11 +23,17 @@ function migrateV1toV2(raw: Raw): Raw {
   };
 }
 
+/** v2 → v3: scans may carry a fitted 3D body (optional field, nothing to convert). */
+function migrateV2toV3(raw: Raw): Raw {
+  return { ...raw, version: 3 };
+}
+
 /** Upgrade older persisted shapes to the current schema, one version at a time. */
 export function migrate(raw: unknown): unknown {
   if (!raw || typeof raw !== 'object') return raw;
   let data = raw as Raw;
   if (data.version === 1) data = migrateV1toV2(data);
+  if (data.version === 2) data = migrateV2toV3(data);
   if (data.version !== DATA_VERSION) return data;
   return data;
 }

@@ -69,7 +69,7 @@ const SITE_NAMES: Record<keyof Scan['sections'], string> = {
 const round1 = (v: number) => Math.round(v * 10) / 10;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-interface Scale {
+export interface Scale {
   pxPerCm: number;
   /** Centimetres above the floor for an image row. */
   heightOf: (y: number) => number;
@@ -78,7 +78,7 @@ interface Scale {
   cm: (px: number) => number;
 }
 
-function scaleFor(m: ViewMarkup, heightCm: number): Scale {
+export function scaleFor(m: ViewMarkup, heightCm: number): Scale {
   const pxPerCm = Math.max(1e-6, (m.floor - m.top) / heightCm);
   return {
     pxPerCm,

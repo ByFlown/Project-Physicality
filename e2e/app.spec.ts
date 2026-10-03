@@ -16,7 +16,10 @@ async function completeScan(page: Page) {
   await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByText('Check the side measurements')).toBeVisible();
   await page.getByRole('button', { name: 'Review results' }).click();
-  await expect(page.getByText('Your scan', { exact: true })).toBeVisible();
+  await expect(page.getByText('Your scan', { exact: true })).toBeVisible({ timeout: 30_000 });
+  // The 3D body was fitted in a worker (either measured on it, or kept for display with a warning).
+  await expect(page.getByText(/3D body fitting was unavailable/)).toBeHidden();
+  await expect(page.getByText(/fitted to your photos|could not match your photos/).first()).toBeVisible();
   await page.getByLabel('I placed the lines on my photos myself and they match my body').check();
   await page.getByRole('button', { name: 'Use this scan' }).click();
   await expect(page.getByText('Body scan complete')).toBeVisible();

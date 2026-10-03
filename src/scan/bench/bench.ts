@@ -11,6 +11,7 @@ import {
 import { measureSites, vertexParts } from '../../body3d/human/sites';
 import { MEASURE_SITES, type MeasureSite, type Scan, type Sex } from '../../domain/schema';
 import { buildScan } from '../buildScan';
+import { fitBody, modelCircumferences, scanObservations } from '../fit';
 import { analyzeFront, analyzeSide, sideLevelsFromFront } from '../geometry';
 import type { ViewAnalysis } from '../types';
 import { biasMask, degradeMask, photograph, posed, type CameraSetup } from './synth';
@@ -133,6 +134,14 @@ const idealCamera = (s: number) => portrait(s, 2.5, 0.85, s / 2, 0);
 const phoneCamera = (r: () => number, s: number) =>
   portrait(s, uniform(r, 2, 3.2), uniform(r, 0.72, 0.88), uniform(r, 0.8, 1.4), gaussian(r) * 0.03);
 
+/** Phone held upright (no tilt) near hip height; the body sits wherever the horizon puts it. */
+const levelCamera = (r: () => number, s: number) => {
+  const h = uniform(r, 0.8, 1.15);
+  const d = uniform(r, 2, 3.2);
+  const fill = Math.min(0.88, (0.95 * s) / (2 * Math.max(s - h, h)));
+  return { ...portrait(s, d, fill, h, 0), pitch: gaussian(r) * 0.02 };
+};
+
 export const SCENARIOS: Record<string, Scenario> = {
   ideal: {
     name: 'ideal: exact mask + landmarks, level camera at mid-body height, 2.5 m',
@@ -144,6 +153,13 @@ export const SCENARIOS: Record<string, Scenario> = {
   camera: {
     name: 'camera only: 2–3.2 m away, 0.8–1.4 m high, aimed at the body',
     camera: (r, s) => ({ front: phoneCamera(r, s), side: phoneCamera(r, s) }),
+    landmarkNoisePx: 0,
+    degrade: false,
+    edgeBiasPx: 0,
+  },
+  level: {
+    name: 'level phone: upright (±1° tilt), 0.8–1.15 m high, 2–3.2 m away',
+    camera: (r, s) => ({ front: levelCamera(r, s), side: levelCamera(r, s) }),
     landmarkNoisePx: 0,
     degrade: false,
     edgeBiasPx: 0,
@@ -181,6 +197,23 @@ export const CHORD_PIPELINE: ScanPipeline = {
   run: ({ front, side, heightCm, sex }) =>
     buildScan({ id: 'bench', date: '2026-01-01', heightCm, sex, front, side, photosKept: false }),
 };
+
+/** Model-based: fit the body model to the photo observations, measure the fitted mesh. */
+export function modelPipeline(models: Record<Sex, HumanModel>): ScanPipeline {
+  return {
+    name: 'model fit',
+    run: ({ front, side, heightCm, sex }) => {
+      const input = { id: 'bench', date: '2026-01-01', heightCm, sex, front, side, photosKept: false };
+      const scan = buildScan(input);
+      const model = models[sex];
+      const fit = fitBody(model, scanObservations(input, scan), {
+        statureM: heightCm / 100,
+        armAbduction: scan.joints.armAngle,
+      });
+      return { circumferences: modelCircumferences(model, fit.coeffs, heightCm / 100, sex) };
+    },
+  };
+}
 
 export interface SiteStats {
   n: number;

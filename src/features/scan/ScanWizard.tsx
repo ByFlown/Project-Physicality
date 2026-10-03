@@ -16,7 +16,9 @@ import { MEASURE_LABELS, type MeasureSite, type Scan, type Sex } from '../../dom
 import { cx } from '../../lib/cx';
 import { uid } from '../../lib/id';
 import { formatLength, round, type UnitSystem } from '../../lib/units';
-import { buildScan } from '../../scan/buildScan';
+import { buildScan, type BuildScanInput } from '../../scan/buildScan';
+import { refineScan } from '../../scan/fitClient';
+import { FIT_WARNING } from '../../scan/refine';
 import { detectPerson } from '../../scan/detector';
 import { analyzeFront, analyzeSide, sideLevelsFromFront } from '../../scan/geometry';
 import { loadPhoto, releasePhoto, type LoadedPhoto } from '../../scan/photo';
@@ -150,17 +152,31 @@ export function ScanWizard({
 
   const [scanId] = useState(uid);
   const built = useMemo(() => {
-    if (!frontA || !sideA || step !== 'result') return { scan: null, error: null };
+    if (!frontA || !sideA || step !== 'result') return { scan: null, input: null, error: null };
+    const input: BuildScanInput = { id: scanId, date, heightCm, sex, front: frontA, side: sideA, photosKept: false };
     try {
-      return {
-        scan: buildScan({ id: scanId, date, heightCm, sex, front: frontA, side: sideA, photosKept: keepPhotos }),
-        error: null,
-      };
+      return { scan: buildScan(input), input, error: null };
     } catch (e) {
-      return { scan: null, error: e instanceof Error ? e.message : String(e) };
+      return { scan: null, input: null, error: e instanceof Error ? e.message : String(e) };
     }
-  }, [frontA, sideA, step, scanId, date, heightCm, sex, keepPhotos]);
-  const scan = built.scan;
+  }, [frontA, sideA, step, scanId, date, heightCm, sex]);
+
+  // Fit the 3D body to the measurements (in a worker); keep the chord scan if that fails.
+  const [fitted, setFitted] = useState<{ from: Scan; scan: Scan | null; error?: string } | null>(null);
+  useEffect(() => {
+    const { scan: chordScan, input } = built;
+    if (!chordScan || !input) return;
+    let live = true;
+    refineScan(chordScan, input).then(
+      (scan) => live && setFitted({ from: chordScan, scan }),
+      (err: unknown) => live && setFitted({ from: chordScan, scan: null, error: String(err) }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [built]);
+  const fitDone = !!built.scan && fitted?.from === built.scan;
+  const scan = fitDone ? (fitted.scan ?? built.scan) : null;
   const manual = !!scan && scan.method === 'manual';
 
   const header = (title: string, sub?: string) => (
@@ -320,12 +336,28 @@ export function ScanWizard({
     );
   }
 
+  if (step === 'result' && built.scan && !fitDone) {
+    return (
+      <div className="py-10 text-center" aria-live="polite">
+        <ScanLine size={36} className="mx-auto mb-4 animate-pulse text-accent" />
+        <p className="font-semibold">Fitting a 3D body to your photos…</p>
+        <p className="mt-3 text-xs text-muted">This takes a few seconds and runs on your device.</p>
+      </div>
+    );
+  }
+
   if (step === 'result' && scan && front && side) {
     const sites = Object.entries(scan.circumferences) as [MeasureSite, number][];
     const q = Math.round(scan.quality * 100);
+    const onModel = !!scan.body && !scan.warnings.includes(FIT_WARNING);
     return (
       <div>
-        {header('Your scan', 'Circumferences estimated from your photos.')}
+        {header(
+          'Your scan',
+          onModel
+            ? 'Circumferences measured on a 3D body fitted to your photos.'
+            : 'Circumferences estimated from your photos.',
+        )}
         <div className="mb-4 flex flex-wrap items-center gap-4">
           <div className="min-w-40 flex-1">
             <div className="flex justify-between text-sm">
@@ -364,9 +396,16 @@ export function ScanWizard({
               ))}
           </ul>
         )}
+        {fitted?.error && <p className="mt-3 text-xs text-muted">3D body fitting was unavailable ({fitted.error}).</p>}
+        {scan.warnings.includes(FIT_WARNING) && (
+          <p className="mt-3 flex gap-2 rounded-xl border border-warn/40 bg-warn/10 p-3 text-sm">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" /> {FIT_WARNING}
+          </p>
+        )}
         <p className="mt-3 text-xs text-muted">
-          Photo measurements are typically within ±3–5 cm of a tape measure. For the best tracking, add tape
-          measurements now and then.
+          {onModel ? `The fitted body matches your outline within ±${round(scan.body!.rmsCm, 1)} cm on average. ` : ''}
+          With fitted clothing and a level phone, photo measurements are typically within ±2–4 cm of a tape measure. For
+          the best tracking, add tape measurements now and then.
         </p>
         <div className="mt-4 flex flex-col gap-2">
           <Checkbox
@@ -386,7 +425,12 @@ export function ScanWizard({
           () => setStep('side'),
           <Button
             disabled={manual && !manualOk}
-            onClick={() => onComplete({ scan, photos: keepPhotos ? { front: front.blob, side: side.blob } : null })}
+            onClick={() =>
+              onComplete({
+                scan: { ...scan, photosKept: keepPhotos },
+                photos: keepPhotos ? { front: front.blob, side: side.blob } : null,
+              })
+            }
           >
             <Check size={16} /> Use this scan
           </Button>,
