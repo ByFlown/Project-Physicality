@@ -65,7 +65,7 @@ test('onboarding requires a scan, then shows the calibrated dashboard', async ({
 test('model detail can be switched in settings', async ({ page }) => {
   await page.goto('/welcome');
   await page.getByRole('button', { name: 'Explore with demo data' }).click();
-  await expect(page.getByText(/calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/fitted to your scan|calibrated to your body scan/)).toBeVisible({ timeout: 15_000 });
   await page.goto('/settings');
   await page.getByRole('radiogroup', { name: '3D model detail' }).getByRole('radio', { name: 'Standard' }).click();
   await page.goto('/');

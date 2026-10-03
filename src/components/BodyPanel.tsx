@@ -1,10 +1,12 @@
 import { ScanLine } from 'lucide-react';
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { BodyShape } from '../body3d/shape';
 import type { MuscleVisual } from '../body3d/BodyScene';
 import { bulgesOnDate, hasWebGL, muscleVisuals, type ColorMode } from '../body3d/visuals';
 import { fittedScan, type RealisticBody } from '../body3d/human/realistic';
+import { fitStoredScan } from '../scan/fitClient';
+import type { BodyFit } from '../domain/schema';
 import { formatDate } from '../domain/dates';
 import { useData } from '../store/hooks';
 import type { Simulation } from '../domain/engine';
@@ -86,8 +88,26 @@ export function BodyPanel({
   const detail = data.settings.modelDetail;
   const scan = data.scans.length ? data.scans.reduce((a, b) => (b.date >= a.date ? b : a)) : null;
   const bulgesAtScan = useMemo(() => (scan ? bulgesOnDate(sim, scan.date) : null), [sim, scan]);
-  const fitted = fittedScan(data.scans);
   const profile = data.profile;
+  // Older scans (and the demo's) have no fitted body yet: fit one from the stored numbers.
+  const [storedFit, setStoredFit] = useState<{ id: string; body: BodyFit } | null>(null);
+  const needsFit = detail === 'precise' && scan && !scan.body && profile ? scan : null;
+  useEffect(() => {
+    if (!needsFit || !profile) return;
+    let live = true;
+    fitStoredScan(needsFit, profile.sex).then(
+      (body) => live && setStoredFit({ id: needsFit.id, body }),
+      () => undefined, // keep the profile-predicted body
+    );
+    return () => {
+      live = false;
+    };
+  }, [needsFit, profile]);
+  const fitted = useMemo(
+    () =>
+      scan && !scan.body && storedFit?.id === scan.id ? { ...scan, body: storedFit.body } : fittedScan(data.scans),
+    [scan, storedFit, data.scans],
+  );
   // The realistic body: shaped by the latest fitted scan, else predicted from the profile at its
   // start; muscles and fat are drawn as changes since that moment.
   const realistic = useMemo<RealisticBody | null>(() => {

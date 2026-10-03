@@ -6,7 +6,7 @@ import { mulberry32, randomSubject, SCENARIOS } from './bench/bench';
 import { photograph } from './bench/synth';
 import { buildScan } from './buildScan';
 import { analyzeFront, analyzeSide, sideLevelsFromFront } from './geometry';
-import { refineScanWithModel } from './refine';
+import { fitStoredScanWithModel, refineScanWithModel } from './refine';
 
 describe('model-refined scan', () => {
   it('stores the fitted body and measures closer to the truth than the chords', () => {
@@ -40,5 +40,27 @@ describe('model-refined scan', () => {
       }
     }
     expect(modelErr).toBeLessThan(chordErr * 0.75);
+  }, 60_000);
+
+  it('fits a body to a stored scan without photos (older scans, demo)', () => {
+    const model = loadModelFromDisk('male');
+    const rand = mulberry32(7);
+    const s = randomSubject(model, rand);
+    const cams = SCENARIOS.ideal.camera(rand, s.statureM);
+    const ph = photograph(model, s.rest, s.joints, vertexParts(model), cams);
+    const front = analyzeFront(ph.front.mask, ph.front.landmarks, 960, 1280, 'male');
+    const side = analyzeSide(ph.side.mask, ph.side.landmarks, 960, 1280, sideLevelsFromFront(front));
+    const scan = buildScan({
+      id: 'x',
+      date: '2026-01-01',
+      heightCm: s.statureM * 100,
+      sex: 'male',
+      front,
+      side,
+      photosKept: false,
+    });
+    const body = fitStoredScanWithModel(scan, model);
+    expect(body.coeffs).toHaveLength(48);
+    expect(body.rmsCm).toBeLessThan(3);
   }, 60_000);
 });

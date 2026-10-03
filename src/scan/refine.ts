@@ -1,8 +1,8 @@
 import type { HumanModel } from '../body3d/human/model';
 import { navyBodyFat } from '../domain/bodycomp';
-import { scanSchema, type Scan } from '../domain/schema';
+import { scanSchema, type BodyFit, type Scan } from '../domain/schema';
 import type { BuildScanInput } from './buildScan';
-import { fitBody, modelCircumferences, scanObservations } from './fit';
+import { fitBody, modelCircumferences, scanObservations, storedScanObservations } from './fit';
 
 /** Above this silhouette mismatch the fitted body is kept for display, but chord circumferences are used. */
 export const MAX_FIT_RMS_CM = 3.5;
@@ -33,4 +33,17 @@ export function refineScanWithModel(scan: Scan, input: BuildScanInput, model: Hu
     circumferences,
     bodyFatPct: bf !== undefined && bf >= 3 && bf <= 60 ? bf : undefined,
   });
+}
+
+/** Fit a body to a stored scan's numbers (no photos). Used for display only; measurements are left alone. */
+export function fitStoredScanWithModel(scan: Scan, model: HumanModel): BodyFit {
+  const fit = fitBody(model, storedScanObservations(scan), {
+    statureM: scan.heightCm / 100,
+    armAbduction: scan.joints.armAngle,
+  });
+  return {
+    model: 'mh-pca-1',
+    coeffs: fit.coeffs.map((c) => Math.round(c * 1e5) / 1e5),
+    rmsCm: Math.round(fit.rmsCm * 100) / 100,
+  };
 }

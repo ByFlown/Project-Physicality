@@ -71,26 +71,7 @@ export function scanObservations(input: BuildScanInput, scan: Scan): Observation
   const { front, side, heightCm } = input;
   const fs = scaleFor(front.markup, heightCm);
   const ss = scaleFor(side.markup, heightCm);
-  const obs: Observation[] = [];
-
-  // Dense torso rows (already corrected to agree with the edited chords).
-  const rows = scan.torso;
-  const lo = rows[0].y;
-  const hi = rows[rows.length - 1].y;
-  const inner = rows.filter((r) => {
-    const f = (r.y - lo) / Math.max(1, hi - lo);
-    return f >= 0.15 && f <= 0.92;
-  });
-  // Reference row for the side-profile shape: the one nearest the hips' height.
-  const ref = inner.reduce((a, b) => (Math.abs(b.y - scan.joints.hipY) < Math.abs(a.y - scan.joints.hipY) ? b : a));
-  for (const r of inner) {
-    obs.push({ kind: 'torsoWidth', y: r.y, value: 2 * r.half, sigma: 1.2 });
-    obs.push({ kind: 'torsoDepth', y: r.y, value: r.front + r.back, sigma: 1.4 });
-    if (r !== ref) {
-      const centre = (x: typeof r) => (x.front - x.back) / 2;
-      obs.push({ kind: 'torsoCenter', y: r.y, yRef: ref.y, value: centre(r) - centre(ref), sigma: 1.5 });
-    }
-  }
+  const obs: Observation[] = torsoObservations(scan);
 
   const fChord = (id: ChordId) => front.markup.chords[id];
   const sChord = (id: ChordId) => side.markup.chords[id];
@@ -153,15 +134,64 @@ export function scanObservations(input: BuildScanInput, scan: Scan): Observation
   }
 
   // Skeleton proportions from landmarks.
-  if (lm) {
-    const j = scan.joints;
-    obs.push({ kind: 'jointHeight', joint: 'upperarm.L', value: j.shoulderY, sigma: 1.5 });
-    obs.push({ kind: 'jointHeight', joint: 'upperleg.L', value: j.hipY, sigma: 2 });
-    obs.push({ kind: 'jointHeight', joint: 'knee.L', value: j.kneeY, sigma: 1.5 });
-    obs.push({ kind: 'jointHeight', joint: 'ankle.L', value: j.ankleY, sigma: 1 });
-    obs.push({ kind: 'boneLength', from: 'upperarm.L', to: 'elbow.L', value: j.upperArmLength, sigma: 2 });
-    obs.push({ kind: 'boneLength', from: 'elbow.L', to: 'wrist.L', value: j.forearmLength, sigma: 2 });
+  if (lm) obs.push(...skeletonObservations(scan));
+  return obs;
+}
+
+/** Dense torso rows: width, depth and side-profile shape (already corrected to the edited chords). */
+function torsoObservations(scan: Scan): Observation[] {
+  const obs: Observation[] = [];
+  const rows = scan.torso;
+  const lo = rows[0].y;
+  const hi = rows[rows.length - 1].y;
+  const inner = rows.filter((r) => {
+    const f = (r.y - lo) / Math.max(1, hi - lo);
+    return f >= 0.15 && f <= 0.92;
+  });
+  // Reference row for the side-profile shape: the one nearest the hips' height.
+  const ref = inner.reduce((a, b) => (Math.abs(b.y - scan.joints.hipY) < Math.abs(a.y - scan.joints.hipY) ? b : a));
+  for (const r of inner) {
+    obs.push({ kind: 'torsoWidth', y: r.y, value: 2 * r.half, sigma: 1.2 });
+    obs.push({ kind: 'torsoDepth', y: r.y, value: r.front + r.back, sigma: 1.4 });
+    if (r !== ref) {
+      const centre = (x: typeof r) => (x.front - x.back) / 2;
+      obs.push({ kind: 'torsoCenter', y: r.y, yRef: ref.y, value: centre(r) - centre(ref), sigma: 1.5 });
+    }
   }
+  return obs;
+}
+
+function skeletonObservations(scan: Scan): Observation[] {
+  const j = scan.joints;
+  return [
+    { kind: 'jointHeight', joint: 'upperarm.L', value: j.shoulderY, sigma: 1.5 },
+    { kind: 'jointHeight', joint: 'upperleg.L', value: j.hipY, sigma: 2 },
+    { kind: 'jointHeight', joint: 'knee.L', value: j.kneeY, sigma: 1.5 },
+    { kind: 'jointHeight', joint: 'ankle.L', value: j.ankleY, sigma: 1 },
+    { kind: 'boneLength', from: 'upperarm.L', to: 'elbow.L', value: j.upperArmLength, sigma: 2 },
+    { kind: 'boneLength', from: 'elbow.L', to: 'wrist.L', value: j.forearmLength, sigma: 2 },
+  ];
+}
+
+/**
+ * Observations from a stored scan alone (no photo analyses): for scans saved
+ * before body fitting existed, and the demo scan. Chord heights and limb
+ * positions are not stored, so typical ones are assumed and weighted less.
+ */
+export function storedScanObservations(scan: Scan): Observation[] {
+  const j = scan.joints;
+  const s = scan.sections;
+  const obs = torsoObservations(scan);
+  obs.push({ kind: 'neckWidth', y: j.neckY, value: s.neck.w, sigma: 1 });
+  obs.push({ kind: 'neckDepth', y: j.neckY, value: s.neck.d, sigma: 1.5 });
+  obs.push({ kind: 'shoulderWidth', y: j.shoulderY, value: s.shoulders.w, sigma: 2.5 });
+  obs.push({ kind: 'limbWidth', limb: 'upperArm', t: DEFAULT_T.upperArm, value: s.upperArm.w, sigma: 0.8 });
+  obs.push({ kind: 'limbWidth', limb: 'forearm', t: DEFAULT_T.forearm, value: s.forearm.w, sigma: 0.8 });
+  obs.push({ kind: 'limbWidth', limb: 'thigh', t: DEFAULT_T.thigh, value: s.thigh.w, sigma: 0.8 });
+  obs.push({ kind: 'limbWidth', limb: 'calf', t: DEFAULT_T.calf, value: s.calf.w, sigma: 0.8 });
+  obs.push({ kind: 'legDepth', y: j.hipY - 0.3 * (j.hipY - j.kneeY), value: s.thigh.d, sigma: 1.3 });
+  obs.push({ kind: 'legDepth', y: j.kneeY - 0.3 * (j.kneeY - j.ankleY), value: s.calf.d, sigma: 1.3 });
+  obs.push(...skeletonObservations(scan));
   return obs;
 }
 
