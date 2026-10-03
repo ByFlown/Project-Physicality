@@ -17,7 +17,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "vision:assets": "node scripts/prepare-vision-assets.mjs"
+    "vision:assets": "node scripts/prepare-vision-assets.mjs",
+    "scan:bench": "node scripts/scan-bench.mjs",
+    "body:bake": "node scripts/bake-body-model.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",

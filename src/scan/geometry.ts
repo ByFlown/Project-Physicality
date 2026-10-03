@@ -305,6 +305,28 @@ function boundsWarnings(mask: Mask, b: Bounds): string[] {
   return out;
 }
 
+/**
+ * The floor under the ankles, in the body's own plane. The lowest mask row is
+ * the toes, which stand ~20 cm closer to the camera and so project lower than
+ * the body's floor: using them as the scale reference makes everything read
+ * 4–6% small (measured with src/scan/bench). With visible ankle landmarks we
+ * extrapolate from head top to ankle by the ankle's typical height instead.
+ */
+export function bodyPlaneFloor(landmarks: Landmark[] | null, height: number, top: number, bottom: number): number {
+  if (!landmarks || landmarks.length < 29) return bottom;
+  const rows = [LM.ankleL, LM.ankleR]
+    .filter((i) => (landmarks[i]?.visibility ?? 0) >= 0.5)
+    .map((i) => landmarks[i].y * height);
+  if (rows.length === 0) return bottom;
+  const ankle = rows.reduce((a, b) => a + b, 0) / rows.length;
+  const f = HEIGHT_FRACTIONS.ankle;
+  const floor = ankle + ((ankle - top) * f) / (1 - f);
+  const H = bottom - top;
+  // Only trust it when it lands just above the toes.
+  if (floor > bottom + 0.01 * H || floor < bottom - 0.1 * H) return bottom;
+  return floor;
+}
+
 function emptyAnalysis(view: View, width: number, height: number, warnings: string[]): ViewAnalysis {
   const markup = defaultMarkup(view, width, height);
   const H = markup.floor - markup.top;
@@ -337,12 +359,12 @@ export function analyzeFront(
 
   const warnings = boundsWarnings(mask, bounds);
   const top = bounds.top;
-  const floor = bounds.bottom + 1;
+  const pose = landmarksUsable(landmarks) ? landmarkPoints(landmarks, width, height) : null;
+  const floor = bodyPlaneFloor(pose ? landmarks : null, height, top, bounds.bottom + 1);
   const H = floor - top;
   const at = (f: number) => floor - f * H;
   const defaults = defaultMarkup('front', width, height);
 
-  const pose = landmarksUsable(landmarks) ? landmarkPoints(landmarks, width, height) : null;
   if (!pose) warnings.push(WARNINGS.noPose);
 
   const shoulderY = pose?.shoulder.y ?? at(HEIGHT_FRACTIONS.shoulder);
@@ -427,7 +449,8 @@ export function analyzeFront(
     neckRun && neckRun[1] - neckRun[0] < H * 0.12 ? horizontal(neckY, neckRun[0], neckRun[1]) : defaults.chords.neck;
 
   // Torso
-  const shoulders = widestIn(shoulderY - 0.08 * torsoLen, shoulderY + 0.12 * torsoLen);
+  // Bideltoid breadth: rows below the shoulder joints already include the abducted upper arms.
+  const shoulders = widestIn(shoulderY - 0.08 * torsoLen, shoulderY + 0.02 * torsoLen);
   chords.shoulders = shoulders ? horizontal(shoulders.y, ...shoulders.run) : defaults.chords.shoulders;
   place('chest', shoulderY + 0.3 * torsoLen);
   if (sex === 'female') {
@@ -626,7 +649,7 @@ export function analyzeSide(
   }
   const warnings = boundsWarnings(mask, bounds);
   const top = bounds.top;
-  const floor = bounds.bottom + 1;
+  const floor = bodyPlaneFloor(landmarks, height, top, bounds.bottom + 1);
   const H = floor - top;
   const at = (f: number) => floor - f * H;
   const defaults = defaultMarkup('side', width, height);

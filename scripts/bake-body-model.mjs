@@ -202,12 +202,12 @@ for (let v = 0; v < NB; v++) {
   const top = [...vertexWeights[v].entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
   if (top.length === 0) top.push([0, 1]);
   const total = top.reduce((s, [, w]) => s + w, 0);
-  let left = 255;
-  top.forEach(([b, w], i) => {
-    const q = i === top.length - 1 ? left : Math.round((w / total) * 255);
+  // Quantise to bytes that sum to exactly 255; the rounding remainder goes to the heaviest bone.
+  const q = top.map(([, w]) => Math.floor((w / total) * 255));
+  q[0] += 255 - q.reduce((a, b) => a + b, 0);
+  top.forEach(([b], i) => {
     skinIndex[v * 4 + i] = b;
-    skinWeight[v * 4 + i] = q;
-    left -= q;
+    skinWeight[v * 4 + i] = q[i];
   });
 }
 

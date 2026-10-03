@@ -33,3 +33,4 @@ dev-lab
 tools/scan-lab/*.jpg
 tools/scan-lab/*.jpeg
 tools/scan-lab/*.png
+scan-bench.txt
