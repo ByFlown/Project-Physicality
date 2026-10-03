@@ -5,9 +5,10 @@ procedural three.js body model. See `README.md` for the architecture.
 
 ## In-progress work
 
-**Read `docs/tasks/body-scan-precise-model.md` first.** It holds the spec, the decisions already made, the status
-checklist and the next steps for the photo body-scan and precise-model feature. Update its checkboxes as you
-complete steps.
+**Read `docs/tasks/precision-and-realism.md` first.** It covers the current phases: scan precision (body-model fit,
+synthetic benchmark) and the realistic MakeHuman-based body. It holds the decisions, the benchmark results, the status
+checklists and the next steps. `docs/tasks/body-scan-precise-model.md` holds the original scan feature spec. Update
+the checkboxes as you complete steps.
 
 ## Conventions
 
@@ -26,3 +27,5 @@ complete steps.
 - `npm run dev` — dev server. Run `npm run vision:assets` once for the body-scan models.
 - `npm run check` — typecheck + lint + unit tests + build. It must stay green.
 - `npm run test:e2e` — Playwright. If the bundled Chromium is missing, set `PLAYWRIGHT_CHROMIUM_PATH`.
+- `npm run scan:bench` — scan accuracy on synthetic bodies. Run it before and after any change to `src/scan/`.
+- `npm run body:bake <makehuman checkout>` — regenerate the body model assets (rarely needed; see the asset README).
