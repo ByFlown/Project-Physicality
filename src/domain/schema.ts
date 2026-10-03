@@ -148,6 +148,8 @@ export type Section = z.infer<typeof sectionSchema>;
 export const bodyFitSchema = z.object({
   /** Body model version the coefficients belong to. */
   model: z.literal('mh-pca-1'),
+  /** Coefficients live in one sex's shape space. */
+  sex: sexSchema,
   coeffs: z.array(z.number().min(-10).max(10)).max(64),
   /** RMS silhouette mismatch after fitting, cm. */
   rmsCm: z.number().min(0).max(100),

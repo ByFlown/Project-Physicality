@@ -91,7 +91,7 @@ export function BodyPanel({
   const profile = data.profile;
   // Older scans (and the demo's) have no fitted body yet: fit one from the stored numbers.
   const [storedFit, setStoredFit] = useState<{ id: string; body: BodyFit } | null>(null);
-  const needsFit = detail === 'precise' && scan && !scan.body && profile ? scan : null;
+  const needsFit = detail === 'precise' && scan && scan.body?.sex !== profile?.sex && profile ? scan : null;
   useEffect(() => {
     if (!needsFit || !profile) return;
     let live = true;
@@ -105,8 +105,12 @@ export function BodyPanel({
   }, [needsFit, profile]);
   const fitted = useMemo(
     () =>
-      scan && !scan.body && storedFit?.id === scan.id ? { ...scan, body: storedFit.body } : fittedScan(data.scans),
-    [scan, storedFit, data.scans],
+      scan && storedFit?.id === scan.id && storedFit.body.sex === profile?.sex
+        ? { ...scan, body: storedFit.body }
+        : profile
+          ? fittedScan(data.scans, profile.sex)
+          : null,
+    [scan, storedFit, data.scans, profile],
   );
   // The realistic body: shaped by the latest fitted scan, else predicted from the profile at its
   // start; muscles and fat are drawn as changes since that moment.

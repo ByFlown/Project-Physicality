@@ -27,9 +27,9 @@ export const SKIN_TONES = ['#f2d3bd', '#e3b897', '#c99674', '#a8714f', '#7d4f36'
 export const DEFAULT_SKIN_TONE = 2;
 export const CLOTH_COLOR = '#2b303b';
 
-/** The scan whose fitted body drives the realistic model: the latest one that has a fit. */
-export function fittedScan(scans: Scan[]): Scan | null {
+/** The scan whose fitted body drives the realistic model: the latest one with a fit for this sex. */
+export function fittedScan(scans: Scan[], sex: Sex): Scan | null {
   return scans
-    .filter((s) => s.body?.model === 'mh-pca-1')
+    .filter((s) => s.body?.model === 'mh-pca-1' && s.body.sex === sex)
     .reduce<Scan | null>((a, b) => (!a || b.date >= a.date ? b : a), null);
 }

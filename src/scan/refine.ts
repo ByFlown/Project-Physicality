@@ -19,6 +19,7 @@ export function refineScanWithModel(scan: Scan, input: BuildScanInput, model: Hu
   const fit = fitBody(model, scanObservations(input, scan), { statureM, armAbduction: scan.joints.armAngle });
   const body = {
     model: 'mh-pca-1' as const,
+    sex: model.sex,
     coeffs: fit.coeffs.map((c) => Math.round(c * 1e5) / 1e5),
     rmsCm: Math.round(fit.rmsCm * 100) / 100,
   };
@@ -43,6 +44,7 @@ export function fitStoredScanWithModel(scan: Scan, model: HumanModel): BodyFit {
   });
   return {
     model: 'mh-pca-1',
+    sex: model.sex,
     coeffs: fit.coeffs.map((c) => Math.round(c * 1e5) / 1e5),
     rmsCm: Math.round(fit.rmsCm * 100) / 100,
   };
